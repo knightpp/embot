@@ -1,64 +1,42 @@
 defmodule Embot do
-  @authdb "./auth.db"
+  require Logger
+  alias Embot.Mastodon
 
   def test() do
-    req = Req.new(base_url: "https://mastodon.knightpp.cc")
-
     access_token = Application.fetch_env!(:embot, :access_token)
-    # case Embot.Database.get(@authdb) do
-    #   {:ok, token} -> token
-    #   {:error, _} -> authorize(req)
-    # end
+    req = Mastodon.new("https://mastodon.knightpp.cc", access_token)
 
-    req = Req.merge(req, auth: {:bearer, access_token})
-    verify_credentials(req)
-    stream_notifications(req)
+    # Mastodon.verify_credentials!(req)
+    Mastodon.stream_notifications!(req, make_process_stream(req))
   end
 
-  def stream_notifications(req) do
-    Req.get(req,
-      url: "/api/v1/streaming/user/notification",
-      into: &process_stream/2,
-      receive_timeout: :timer.seconds(90)
-    )
-  end
-
-  def process_stream({:data, data}, {req, resp}) do
-    result =
+  def make_process_stream(orig_req) do
+    fn {:data, data}, {req, resp} ->
       Embot.Streaming.Sse.parse(data)
+      |> dbg()
       |> Stream.filter(fn {key, _} -> key == :data end)
-      |> Enum.map(fn {_, data} -> Jason.decode!(data) end)
+      |> Stream.map(fn {_, data} -> Jason.decode!(data) end)
+      |> Enum.each(fn data ->
+        status_id = data |> Map.fetch!("status") |> Map.fetch!("id")
+        visibility = data |> Map.fetch!("status") |> Map.fetch!("visibility")
+        notification_id = Map.fetch!(data, "id")
+        account = data |> Map.fetch!("account") |> Map.fetch!("acct")
 
-    IO.inspect(result)
-    {:cont, {req, resp}}
-  end
+        Logger.info("replying to #{status_id}")
 
-  defp verify_credentials(req) do
-    %{status: 200, body: body} = Req.get!(req, url: "api/v1/apps/verify_credentials")
-    body
-  end
+        Mastodon.post_status!(
+          orig_req,
+          status: "@#{account} hello!",
+          in_reply_to_id: status_id,
+          visibility: visibility
+        )
 
-  defp authorize(req) do
-    # Example response
-    # {
-    #   "access_token": "ZA-Yj3aBD8U8Cm7lKUp-lm9O9BmDgdhHzDeqsY8tlL0",
-    #   "token_type": "Bearer",
-    #   "scope": "read write follow push",
-    #   "created_at": 1573979017
-    # }
-    %{status: 200, body: body} =
-      Req.post!(req,
-        url: "/oauth/token",
-        form: [
-          client_id: Application.fetch_env!(:embot, :client_id),
-          client_secret: Application.fetch_env!(:embot, :client_secret),
-          redirect_uri: "urn:ietf:wg:oauth:2.0:oob",
-          grant_type: "client_credentials"
-        ]
-      )
+        Logger.info("dismissing notification id=#{notification_id}")
+        :ok = Mastodon.notification_dismiss!(orig_req, notification_id)
+        :timer.sleep(1000)
+      end)
 
-    access_token = body["access_token"]
-    :ok = Embot.Database.put(@authdb, access_token)
-    access_token
+      {:cont, {req, resp}}
+    end
   end
 end
