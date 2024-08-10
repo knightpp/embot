@@ -1,7 +1,11 @@
 defmodule Embot.NotificationHandler do
   alias Embot.NotificationHandler.Worker
 
-  defstruct none: nil
+  defstruct callback: nil
+
+  def new() do
+    %__MODULE__{callback: &handle_data/1}
+  end
 
   def child_spec(req) do
     Poolex.child_spec(
@@ -58,10 +62,10 @@ defmodule Embot.NotificationHandler.Worker do
 
   @impl GenServer
   def handle_call({:process, data}, _, req) do
-    Embot.Streaming.Sse.parse(data)
+    Embot.Sse.parse!(data)
     |> dbg()
     |> Stream.filter(fn {key, _} -> key == :data end)
-    |> Stream.map(fn {_, data} -> Jason.decode!(data) end)
+    |> Stream.map(fn {_, data} -> data end)
     |> Enum.each(fn data ->
       status_id = data |> Map.fetch!("status") |> Map.fetch!("id")
       visibility = data |> Map.fetch!("status") |> Map.fetch!("visibility")

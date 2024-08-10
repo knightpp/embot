@@ -6,6 +6,7 @@ defmodule Embot.Streamer do
   end
 
   def stream(req) do
-    Embot.Mastodon.stream_notifications!(req, %Embot.NotificationHandler{})
+    handler = Embot.NotificationHandler.new()
+    Embot.Mastodon.stream_notifications!(req, handler)
   end
 end
