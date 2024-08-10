@@ -7,6 +7,8 @@ fetch_env = fn key ->
 end
 
 config :embot,
-  client_id: fetch_env.("BOT_CLIENT_ID"),
-  client_secret: fetch_env.("BOT_CLIENT_SECRET"),
-  access_token: fetch_env.("BOT_ACCESS_TOKEN")
+  access_token: fetch_env.("BOT_ACCESS_TOKEN"),
+  endpoint: fetch_env.("BOT_ENDPOINT")
+
+# client_id: fetch_env.("BOT_CLIENT_ID"),
+# client_secret: fetch_env.("BOT_CLIENT_SECRET"),

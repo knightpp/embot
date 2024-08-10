@@ -1,10 +1,12 @@
 defmodule Embot.NotificationHandler do
+  require Logger
   alias Embot.NotificationHandler.Worker
 
   defstruct callback: nil
 
   def new() do
-    %__MODULE__{callback: &handle_data/1}
+    # TODO: Use callback?
+    %__MODULE__{callback: nil}
   end
 
   def child_spec(req) do
@@ -16,7 +18,15 @@ defmodule Embot.NotificationHandler do
     )
   end
 
-  def handle_data(data) do
+  def handle_sse(sse_data) do
+    Embot.Sse.parse!(sse_data)
+    |> Stream.filter(fn {key, _} -> key == :data end)
+    |> Enum.each(fn {_, data} -> handle_mention(data) end)
+  end
+
+  def handle_mention(data) do
+    Logger.info("handle mention #{data["id"]}")
+
     Poolex.run(__MODULE__, fn pid ->
       Worker.process(pid, data)
     end)
@@ -27,7 +37,7 @@ defimpl Collectable, for: Embot.NotificationHandler do
   def into(_) do
     callback = fn
       _, {:cont, data} ->
-        Embot.NotificationHandler.handle_data(data)
+        Embot.NotificationHandler.handle_sse(data)
         :ok
 
       _, :done ->
@@ -62,29 +72,23 @@ defmodule Embot.NotificationHandler.Worker do
 
   @impl GenServer
   def handle_call({:process, data}, _, req) do
-    Embot.Sse.parse!(data)
-    |> dbg()
-    |> Stream.filter(fn {key, _} -> key == :data end)
-    |> Stream.map(fn {_, data} -> data end)
-    |> Enum.each(fn data ->
-      status_id = data |> Map.fetch!("status") |> Map.fetch!("id")
-      visibility = data |> Map.fetch!("status") |> Map.fetch!("visibility")
-      notification_id = Map.fetch!(data, "id")
-      account = data |> Map.fetch!("account") |> Map.fetch!("acct")
+    status_id = data |> Map.fetch!("status") |> Map.fetch!("id")
+    visibility = data |> Map.fetch!("status") |> Map.fetch!("visibility")
+    notification_id = Map.fetch!(data, "id")
+    account = data |> Map.fetch!("account") |> Map.fetch!("acct")
 
-      Logger.info("replying to #{status_id}")
+    Logger.info("replying to #{status_id}")
 
-      Mastodon.post_status!(
-        req,
-        status: "@#{account} hello!",
-        in_reply_to_id: status_id,
-        visibility: visibility
-      )
+    Mastodon.post_status!(
+      req,
+      status: "@#{account} hello!",
+      in_reply_to_id: status_id,
+      visibility: visibility
+    )
 
-      Logger.info("dismissing notification id=#{notification_id}")
-      :ok = Mastodon.notification_dismiss!(req, notification_id)
-      :timer.sleep(1000)
-    end)
+    Logger.info("dismissing notification id=#{notification_id}")
+    :ok = Mastodon.notification_dismiss!(req, notification_id)
+    :timer.sleep(1000)
 
     {:reply, :ok, req}
   end

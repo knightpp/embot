@@ -58,4 +58,9 @@ defmodule Embot.Mastodon do
       created_at: Map.fetch!(body, "created_at")
     }
   end
+
+  def notifications!(req, query_params \\ []) do
+    %{status: 200, body: body} = Req.get!(req, url: "/api/v1/notifications", params: query_params)
+    body
+  end
 end
