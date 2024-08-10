@@ -5,7 +5,13 @@ defmodule Embot.Application do
 
   @impl true
   def start(_type, _args) do
-    children = []
+    access_token = Application.fetch_env!(:embot, :access_token)
+    req = Embot.Mastodon.new("https://mastodon.knightpp.cc", access_token)
+
+    children = [
+      {Embot.NotificationHandler, req},
+      {Embot.Streamer, req}
+    ]
 
     opts = [strategy: :one_for_one, name: Embot.Supervisor]
     Supervisor.start_link(children, opts)

@@ -21,7 +21,8 @@ defmodule Embot.MixProject do
   defp deps do
     [
       {:req, "~> 0.5"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:poolex, "~> 0.9"}
     ]
   end
 end
