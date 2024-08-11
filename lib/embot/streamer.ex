@@ -1,12 +1,17 @@
 defmodule Embot.Streamer do
-  use Task, restart: :permanent
+  use Supervisor
 
   def start_link(req) do
-    Task.start_link(__MODULE__, :stream, [req])
+    Supervisor.start_link(__MODULE__, req)
   end
 
-  def stream(req) do
-    handler = Embot.NotificationHandler.new()
-    Embot.Mastodon.stream_notifications!(req, handler)
+  @impl Supervisor
+  def init(req) do
+    children = [
+      {Embot.Streamer.Producer, req},
+      {Embot.Streamer.ConsumerSupervisor, req}
+    ]
+
+    Supervisor.init(children, strategy: :rest_for_one)
   end
 end

@@ -10,7 +10,6 @@ defmodule Embot.Application do
     req = Embot.Mastodon.new(endpoint, access_token)
 
     children = [
-      {Embot.NotificationHandler, req},
       {Embot.Streamer, req},
       {Embot.Backlog, req}
     ]

@@ -10,7 +10,7 @@ defmodule Embot.Mastodon do
   end
 
   def stream_notifications!(req, into) do
-    Req.get(req,
+    Req.get!(req,
       url: "/api/v1/streaming/user/notification",
       into: into,
       receive_timeout: :timer.seconds(90)

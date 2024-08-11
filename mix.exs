@@ -22,7 +22,7 @@ defmodule Embot.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
-      {:poolex, "~> 0.9"}
+      {:gen_stage, "~> 1.2"}
     ]
   end
 end

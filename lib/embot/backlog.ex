@@ -11,13 +11,6 @@ defmodule Embot.Backlog do
     mentions = Mastodon.notifications!(req, types: :mention)
     Logger.info("found #{length(mentions)} unread mentions")
 
-    mentions
-    |> Task.async_stream(
-      fn mention ->
-        Embot.NotificationHandler.handle_mention(mention)
-      end,
-      ordered: false
-    )
-    |> Stream.run()
+    mentions |> Enum.each(&Embot.Streamer.Producer.sync_notify({:mention, &1}))
   end
 end
