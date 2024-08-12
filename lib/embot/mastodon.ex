@@ -9,6 +9,20 @@ defmodule Embot.Mastodon do
     body
   end
 
+  def upload_media!(req, data) do
+    # status may be 200 or 202
+    %{body: body} =
+      dbg(Req.post!(req, url: "/api/v2/media", form_multipart: data, retry: false))
+      |> Req.Request.append_request_steps(
+        debug_url: fn request ->
+          dbg(request)
+          request
+        end
+      )
+
+    body
+  end
+
   def stream_notifications!(req, into) do
     Req.get!(req,
       url: "/api/v1/streaming/user/notification",

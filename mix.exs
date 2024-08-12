@@ -22,7 +22,10 @@ defmodule Embot.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
-      {:gen_stage, "~> 1.2"}
+      {:gen_stage, "~> 1.2"},
+      {:floki, "~> 0.36"},
+      # optimized HTML parser
+      {:html5ever, "~> 0.16"}
     ]
   end
 end
