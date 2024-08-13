@@ -63,7 +63,7 @@ defmodule Embot.NotificationHandler do
     )
   end
 
-  defp upload_media(req, %{video: video, image: image}) when video != nil do
+  defp upload_media(req, %{video: video, image: image}) when video != nil and image != nil do
     %{status: 200, body: thumbnail} = Req.get!(url: image, redirect: false)
 
     # did not work with into: :self
