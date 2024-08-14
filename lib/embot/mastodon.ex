@@ -10,11 +10,13 @@ defmodule Embot.Mastodon do
   end
 
   def upload_media!(req, data) do
-    # status may be 200 or 202
-    %{body: body} =
+    %{status: status, body: body} =
       Req.post!(req, url: "/api/v2/media", form_multipart: data)
 
-    body
+    case status do
+      200 -> body
+      202 -> body
+    end
   end
 
   def stream_notifications!(req, into) do
@@ -45,6 +47,23 @@ defmodule Embot.Mastodon do
       )
 
     body
+  end
+
+  def get_media!(req, id) do
+    %{status: status, body: body} =
+      Req.get!(req,
+        url: "/api/v1/media/:id",
+        path_params: [id: id]
+      )
+
+    case status do
+      206 ->
+        :timer.sleep(:timer.seconds(1))
+        get_media!(req, id)
+
+      200 ->
+        body
+    end
   end
 
   def oauth_token!(req, client_id, client_secret) do

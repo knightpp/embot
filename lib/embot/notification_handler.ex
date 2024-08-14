@@ -11,6 +11,7 @@ defmodule Embot.NotificationHandler do
   def process_mention(data, req) do
     status = Map.fetch!(data, "status")
     notification_id = data |> Map.fetch!("id")
+    status_id = Map.fetch!(status, "id")
 
     content = status |> Map.fetch!("content") |> Floki.parse_document!()
     links = content |> Floki.attribute("a[href*='x.com/i/status']", "href") |> Enum.take(1)
@@ -20,25 +21,19 @@ defmodule Embot.NotificationHandler do
         on_empty_links(req, data, status)
 
       [link] ->
-        dbg(link)
         fxlink = %URI{URI.parse(link) | host: "fixupx.com"} |> URI.to_string()
-        dbg(fxlink)
         twi = get_fxtwitter_ogp!(fxlink)
-        dbg(twi)
 
-        opts =
-          case upload_media(req, twi) do
-            nil -> []
-            id -> [media_ids: id]
-          end
+        media_id = upload_media!(req, twi)
+        # wait until media is processed
+        Mastodon.get_media!(req, media_id)
 
-        opts =
-          Keyword.merge(opts,
-            status: "Originally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
-            visibility: "unlisted"
-          )
-
-        Mastodon.post_status!(req, opts)
+        Mastodon.post_status!(req,
+          status: "Originally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
+          in_reply_to_id: status_id,
+          visibility: "unlisted",
+          "media_ids[]": media_id
+        )
     end
 
     Logger.info("dismissing notification id=#{notification_id}")
@@ -63,17 +58,18 @@ defmodule Embot.NotificationHandler do
     )
   end
 
-  defp upload_media(req, %{video: video, image: image}) when video != nil and image != nil do
-    %{status: 200, body: thumbnail} = Req.get!(url: image, redirect: false)
+  defp upload_media!(req, %{video: video, image: image}) when video != nil and image != nil do
+    %{status: 200, body: thumbnail, headers: %{"content-type" => [image_mime]}} =
+      Req.get!(url: image, redirect: false)
 
     # did not work with into: :self
-    %{status: 200, body: video_binary, headers: %{"content-type" => [mime]}} =
+    %{status: 200, body: video_binary, headers: %{"content-type" => [video_mime]}} =
       Req.get!(url: video, redirect: false)
 
     %{"id" => id} =
       Mastodon.upload_media!(req,
-        file: {video_binary, content_type: mime},
-        thumbnail: thumbnail
+        file: {video_binary, content_type: video_mime, filename: video},
+        thumbnail: {thumbnail, content_type: image_mime, filename: "thumbnail"}
       )
 
     id
