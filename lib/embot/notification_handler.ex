@@ -25,7 +25,8 @@ defmodule Embot.NotificationHandler do
          req,
          %{
            "account" => %{"acct" => acct},
-           "status" => %{"id" => status_id, "content" => content}
+           "type" => "mention",
+           "status" => %{"id" => status_id, "content" => content, "visibility" => visibility}
          }
        ) do
     content = content |> Floki.parse_document!()
@@ -51,6 +52,11 @@ defmodule Embot.NotificationHandler do
           "media_ids[]": media_id
         )
     end
+  end
+
+  defp parse_link_and_send_reply!(_req, notification) do
+    Logger.warning("got unknown notification")
+    dbg(notification)
   end
 
   defp wait_media_processing!(_req, nil), do: :no_media
