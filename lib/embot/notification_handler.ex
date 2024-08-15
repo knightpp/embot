@@ -60,8 +60,26 @@ defmodule Embot.NotificationHandler do
   end
 
   defp parse_link_and_send_reply!(_req, notification) do
-    Logger.warning("got unknown notification")
-    dbg(notification)
+    type =
+      case notification["type"] do
+        "status" -> :ok
+        "reblog" -> :ok
+        "follow" -> :ok
+        "follow_request" -> :ok
+        "favourite" -> :ok
+        "poll" -> :ok
+        "update" -> :ok
+        "admin.sign_up" -> :ok
+        "admin.report" -> :ok
+        "severed_relationships" -> :ok
+        "moderation_warning" -> :ok
+        _ -> :unknown
+      end
+
+    if type != :ok do
+      Logger.warning("got unknown notification")
+      dbg(notification)
+    end
   end
 
   defp wait_media_processing!(_req, nil), do: :no_media
