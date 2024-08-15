@@ -58,8 +58,12 @@ defmodule Embot.NotificationHandler do
 
   defp wait_media_processing!(req, media_id) do
     case Mastodon.get_media!(req, media_id) do
-      {:processing, _} -> :timer.sleep(:timer.seconds(1))
-      {:ok, _} -> :ok
+      {:processing, _} ->
+        :timer.sleep(:timer.seconds(1))
+        wait_media_processing!(req, media_id)
+
+      {:ok, _} ->
+        :ok
     end
   end
 
