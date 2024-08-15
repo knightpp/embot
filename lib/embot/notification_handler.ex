@@ -108,20 +108,29 @@ defmodule Embot.NotificationHandler do
   end
 
   # When there's video, the image is a thumbnail
-  defp upload_media!(req, %{video: video, image: image}) do
-    %{status: 200, body: thumbnail, headers: %{"content-type" => [image_mime]}} =
-      Req.get!(url: image, redirect: false)
+  defp upload_media!(req, %{video: video, image: _image}) do
+    # %{status: 200, body: thumbnail, headers: %{"content-type" => [image_mime]}} =
+    #   Req.get!(url: image, redirect: false)
 
-    # did not work with into: :self
-    %{status: 200, body: video_binary, headers: %{"content-type" => [video_mime]}} =
+    %{status: 200, body: video_binary, headers: video_headers} =
       Req.get!(url: video, redirect: false)
 
     %{"id" => id} =
       Mastodon.upload_media!(req,
-        file: {video_binary, content_type: video_mime, filename: video},
-        thumbnail: {thumbnail, content_type: image_mime, filename: image}
+        file:
+          {video_binary,
+           content_type: getContentType(video_headers, "video/mp4"), filename: video}
+        # Request with thumbnail of mp4 gif file was rejected, why???
+        # thumbnail: {thumbnail, content_type: image_mime, filename: image}
       )
 
     id
+  end
+
+  defp getContentType(headers, default) do
+    case headers["content-type"] do
+      [ct | _] -> ct
+      _ -> default
+    end
   end
 end

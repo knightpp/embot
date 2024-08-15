@@ -10,12 +10,9 @@ defmodule Embot.Mastodon do
   end
 
   def upload_media!(req, data) do
-    %{status: status, body: body} =
-      Req.post!(req, url: "/api/v2/media", form_multipart: data)
-
-    case status do
-      200 -> body
-      202 -> body
+    case Req.post!(req, url: "/api/v2/media", form_multipart: data) do
+      %{status: 200, body: body} -> body
+      %{status: 202, body: body} -> body
     end
   end
 

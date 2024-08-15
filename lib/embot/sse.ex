@@ -16,6 +16,7 @@ defmodule Embot.Sse do
         {:event, String.trim(value)}
 
       "data" ->
+        dbg(line)
         dbg(value)
         {:data, Jason.decode!(value)}
     end
