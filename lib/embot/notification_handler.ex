@@ -48,7 +48,12 @@ defmodule Embot.NotificationHandler do
         Mastodon.post_status!(req,
           status: "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
           in_reply_to_id: status_id,
-          visibility: "unlisted",
+          visibility:
+            if visibility == "direct" do
+              "direct"
+            else
+              "unlisted"
+            end,
           "media_ids[]": media_id
         )
     end
