@@ -58,11 +58,10 @@ defmodule Embot.Mastodon do
 
     case status do
       206 ->
-        :timer.sleep(:timer.seconds(1))
-        get_media!(req, id)
+        {:processing, body}
 
       200 ->
-        body
+        {:ok, body}
     end
   end
 

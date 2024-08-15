@@ -29,19 +29,21 @@ defmodule Embot.NotificationHandler do
          }
        ) do
     content = content |> Floki.parse_document!()
-    links = content |> Floki.attribute("a[href*='x.com/i/status']", "href") |> Enum.take(1)
 
-    case links do
+    links =
+      Floki.attribute(content, "a[href^='https://x.com']", "href") ++
+        Floki.attribute(content, "a[href^='https://twitter.com']", "href")
+
+    case Enum.take(links, 1) do
       [] ->
         Logger.info("no links in #{status_id}")
 
       [link] ->
         fxlink = %URI{URI.parse(link) | host: "fixupx.com"} |> URI.to_string()
-        twi = get_fxtwitter_ogp!(fxlink)
+        twi = Embot.Fxtwi.get!(fxlink)
 
         media_id = upload_media!(req, twi)
-        # wait until media is processed
-        Mastodon.get_media!(req, media_id)
+        wait_media_processing!(req, media_id)
 
         Mastodon.post_status!(req,
           status: "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
@@ -52,7 +54,29 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp upload_media!(req, %{video: video, image: image}) when video != nil and image != nil do
+  defp wait_media_processing!(_req, nil), do: :no_media
+
+  defp wait_media_processing!(req, media_id) do
+    case Mastodon.get_media!(req, media_id) do
+      {:processing, _} -> :timer.sleep(:timer.seconds(1))
+      {:ok, _} -> :ok
+    end
+  end
+
+  defp upload_media!(_req, %{video: nil, image: nil}), do: nil
+
+  defp upload_media!(req, %{video: nil, image: image_url}) do
+    %{status: 200, body: image, headers: %{"content-type" => [image_mime]}} =
+      Req.get!(url: image_url, redirect: false)
+
+    %{"id" => id} =
+      Mastodon.upload_media!(req, file: {image, content_type: image_mime, filename: image_url})
+
+    id
+  end
+
+  # When there's video, the image is a thumbnail
+  defp upload_media!(req, %{video: video, image: image}) do
     %{status: 200, body: thumbnail, headers: %{"content-type" => [image_mime]}} =
       Req.get!(url: image, redirect: false)
 
@@ -68,38 +92,4 @@ defmodule Embot.NotificationHandler do
 
     id
   end
-
-  defp get_fxtwitter_ogp!(url) do
-    %{status: 200, body: body} = Req.get!(url: url, redirect: false, user_agent: "curl")
-
-    document = body |> Floki.parse_document!()
-
-    original_url =
-      document |> Floki.attribute("meta[property='og:url'][content]", "content") |> first!()
-
-    description =
-      document
-      |> Floki.attribute("meta[property='og:description'][content]", "content")
-      |> first!()
-
-    title =
-      document
-      |> Floki.attribute("meta[property='og:title'][content]", "content")
-      |> first!()
-
-    image =
-      document
-      |> Floki.attribute("meta[property='og:image'][content]", "content")
-      |> first()
-
-    video =
-      document |> Floki.attribute("meta[property='og:video'][content]", "content") |> first()
-
-    %{video: video, description: description, url: original_url, title: title, image: image}
-  end
-
-  defp first([]), do: nil
-  defp first([a | _]), do: a
-
-  defp first!([a | _]), do: a
 end
