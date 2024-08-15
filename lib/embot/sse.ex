@@ -9,9 +9,15 @@ defmodule Embot.Sse do
     [key, value] = :binary.split(line, ":")
 
     case key do
-      "" -> {:comment, value}
-      "event" -> {:event, String.trim(value)}
-      "data" -> {:data, Jason.decode!(value)}
+      "" ->
+        {:comment, value}
+
+      "event" ->
+        {:event, String.trim(value)}
+
+      "data" ->
+        dbg(value)
+        {:data, Jason.decode!(value)}
     end
   end
 end
