@@ -7,8 +7,21 @@ defmodule Embot.Fxtwi do
           image: nil | String.t()
         }
 
+  def patch_url!(link) do
+    url = URI.parse(link)
+
+    patched =
+      case url.host do
+        "x.com" -> %URI{url | host: "fixupx.com"}
+        "twitter.com" -> %URI{url | host: "fxtwitter.com"}
+      end
+
+    URI.to_string(patched)
+  end
+
   @spec get!(String.t()) :: Embot.Fxtwi.t()
   def get!(url) do
+    url = patch_url!(url)
     %{status: 200, body: body} = Req.get!(url: url, redirect: false, user_agent: "curl")
     parse!(body)
   end

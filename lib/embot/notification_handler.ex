@@ -39,8 +39,7 @@ defmodule Embot.NotificationHandler do
         Logger.info("no links in #{status_id}")
 
       [link] ->
-        fxlink = %URI{URI.parse(link) | host: "fixupx.com"} |> URI.to_string()
-        twi = Embot.Fxtwi.get!(fxlink)
+        twi = Embot.Fxtwi.get!(link)
 
         media_id = upload_media!(req, twi)
         wait_media_processing!(req, media_id)
