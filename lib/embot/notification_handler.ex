@@ -9,16 +9,31 @@ defmodule Embot.NotificationHandler do
   end
 
   def process_mention(data, req) do
-    status = Map.fetch!(data, "status")
-    notification_id = data |> Map.fetch!("id")
-    status_id = Map.fetch!(status, "id")
+    parse_link_and_send_reply!(req, data)
 
-    content = status |> Map.fetch!("content") |> Floki.parse_document!()
+    notification_id = data |> Map.fetch!("id")
+    Logger.info("dismissing notification id=#{notification_id}")
+    :ok = Mastodon.notification_dismiss!(req, notification_id)
+    {:noreply, req}
+  end
+
+  defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true, "acct" => acct}}) do
+    Logger.warning("got a message from bot! @#{acct}")
+  end
+
+  defp parse_link_and_send_reply!(
+         req,
+         %{
+           "account" => %{"acct" => acct},
+           "status" => %{"id" => status_id, "content" => content}
+         }
+       ) do
+    content = content |> Floki.parse_document!()
     links = content |> Floki.attribute("a[href*='x.com/i/status']", "href") |> Enum.take(1)
 
     case links do
       [] ->
-        on_empty_links(req, data, status)
+        Logger.info("no links in #{status_id}")
 
       [link] ->
         fxlink = %URI{URI.parse(link) | host: "fixupx.com"} |> URI.to_string()
@@ -29,33 +44,12 @@ defmodule Embot.NotificationHandler do
         Mastodon.get_media!(req, media_id)
 
         Mastodon.post_status!(req,
-          status: "Originally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
+          status: "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
           in_reply_to_id: status_id,
           visibility: "unlisted",
           "media_ids[]": media_id
         )
     end
-
-    Logger.info("dismissing notification id=#{notification_id}")
-    :ok = Mastodon.notification_dismiss!(req, notification_id)
-    :timer.sleep(1000)
-
-    {:noreply, req}
-  end
-
-  defp on_empty_links(req, data, status) do
-    status_id = status |> Map.fetch!("id")
-    visibility = status |> Map.fetch!("visibility")
-    account = data |> Map.fetch!("account") |> Map.fetch!("acct")
-
-    Logger.info("replying to #{status_id}")
-
-    Mastodon.post_status!(
-      req,
-      status: "@#{account} hello! I do not work without x[dot]com links :(",
-      in_reply_to_id: status_id,
-      visibility: visibility
-    )
   end
 
   defp upload_media!(req, %{video: video, image: image}) when video != nil and image != nil do
@@ -69,13 +63,11 @@ defmodule Embot.NotificationHandler do
     %{"id" => id} =
       Mastodon.upload_media!(req,
         file: {video_binary, content_type: video_mime, filename: video},
-        thumbnail: {thumbnail, content_type: image_mime, filename: "thumbnail"}
+        thumbnail: {thumbnail, content_type: image_mime, filename: image}
       )
 
     id
   end
-
-  defp upload_media(_req, _), do: nil
 
   defp get_fxtwitter_ogp!(url) do
     %{status: 200, body: body} = Req.get!(url: url, redirect: false, user_agent: "curl")
