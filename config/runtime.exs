@@ -9,6 +9,3 @@ end
 config :embot,
   access_token: fetch_env.("BOT_ACCESS_TOKEN"),
   endpoint: fetch_env.("BOT_ENDPOINT")
-
-# client_id: fetch_env.("BOT_CLIENT_ID"),
-# client_secret: fetch_env.("BOT_CLIENT_SECRET"),
