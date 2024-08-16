@@ -17,6 +17,7 @@ defmodule Embot.Mastodon do
   end
 
   def stream_notifications!(req, into) do
+    # Add text/event-stream header
     Req.get!(req,
       url: "/api/v1/streaming/user/notification",
       into: into,

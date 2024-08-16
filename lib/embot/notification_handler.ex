@@ -3,7 +3,7 @@ defmodule Embot.NotificationHandler do
   alias Embot.Mastodon
 
   def handle_sse(sse_data, req) do
-    Embot.Sse.parse!(sse_data)
+    Embot.Sse.parse(sse_data)
     |> Stream.filter(fn {key, _} -> key == :data end)
     |> Enum.each(fn {_, data} -> process_mention(data, req) end)
   end
