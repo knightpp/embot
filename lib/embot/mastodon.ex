@@ -17,8 +17,13 @@ defmodule Embot.Mastodon do
   end
 
   def stream_notifications!(req, into) do
-    # Add text/event-stream header
-    Req.get!(req,
+    req
+    |> Req.Request.put_headers([
+      {"content-type", "text/event-stream; charset=utf-8"},
+      {"cache-control", "no-cache"},
+      {"connection", "keep-alive"}
+    ])
+    |> Req.get!(
       url: "/api/v1/streaming/user/notification",
       into: into,
       receive_timeout: :timer.seconds(90)
