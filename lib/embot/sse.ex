@@ -1,22 +1,8 @@
 defmodule Embot.Sse do
-  require Logger
-
-  def parse(data) do
-    String.splitter(data, "\n\n", trim: true)
-    |> Stream.flat_map(fn event ->
-      String.splitter(event, "\n", trim: true)
-      |> Stream.map(&parse_line/1)
-      |> Stream.filter(fn
-        {:ok, _data} ->
-          true
-
-        {:error, error} ->
-          dbg(data)
-          Logger.error("could not parse sse line", error: inspect(error))
-          false
-      end)
-      |> Stream.map(fn {:ok, data} -> data end)
-    end)
+  def parse(event) do
+    event
+    |> String.splitter("\n", trim: true)
+    |> Stream.map(&parse_line/1)
   end
 
   @spec accumulate([String.t()], String.t()) :: {:more, [String.t()]} | {:done, String.t()}

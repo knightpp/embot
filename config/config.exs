@@ -2,7 +2,7 @@ import Config
 
 log_level =
   if config_env() == :prod do
-    :warning
+    :info
   else
     :debug
   end

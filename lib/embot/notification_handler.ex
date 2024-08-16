@@ -4,8 +4,15 @@ defmodule Embot.NotificationHandler do
 
   def handle_sse(sse_data, req) do
     Embot.Sse.parse(sse_data)
-    |> Stream.filter(fn {key, _} -> key == :data end)
-    |> Enum.each(fn {_, data} -> process_mention(data, req) end)
+    |> Stream.filter(fn
+      {:ok, {key, _}} ->
+        key == :data
+
+      {:error, error} ->
+        Logger.error("could not parse sse line", error: inspect(error))
+        false
+    end)
+    |> Enum.each(fn {:ok, {_, data}} -> process_mention(data, req) end)
   end
 
   def process_mention(data, req) do
