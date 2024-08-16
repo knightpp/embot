@@ -2,7 +2,7 @@ defmodule Embot.Sse do
   require Logger
 
   def parse(data) do
-    String.splitter(data, "\n\n")
+    String.splitter(data, "\n\n", trim: true)
     |> Stream.flat_map(fn event ->
       String.splitter(event, "\n", trim: true)
       |> Stream.map(&parse_line/1)
@@ -28,10 +28,14 @@ defmodule Embot.Sse do
   end
 
   defp parse_line_from_parts([key, value]) do
+    value = String.trim_leading(value)
+
     case key do
       "" -> {:ok, {:comment, value}}
-      "event" -> {:ok, {:event, String.trim(value)}}
+      "event" -> {:ok, {:event, value}}
       "data" -> decode(value)
+      "id" -> {:ok, {:id, value}}
+      "retry" -> {:ok, {:retry, value}}
       _ -> {:error, :unknown_key}
     end
   end
