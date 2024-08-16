@@ -19,6 +19,14 @@ defmodule Embot.Sse do
     end)
   end
 
+  @spec accumulate([String.t()], String.t()) :: {:more, [String.t()]} | {:done, String.t()}
+  def accumulate(acc, data) do
+    case :binary.split(data, "\n\n") do
+      [part] -> {:more, [part | acc]}
+      [part, ""] -> {:done, IO.iodata_to_binary(:lists.reverse(acc, part))}
+    end
+  end
+
   defp parse_line(line) do
     line |> :binary.split(":") |> parse_line_from_parts()
   end

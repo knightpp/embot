@@ -1,4 +1,5 @@
 defmodule Embot.Streamer.Producer do
+  require Logger
   use GenStage
 
   def start_link(req) do
@@ -25,12 +26,22 @@ defmodule Embot.Streamer.Producer do
     {:noreply, [], queue}
   end
 
-  @doc """
-    Handles SSE chunk callback.
-  """
   @impl GenStage
-  def handle_info({_, {:data, chunk}}, queue) do
-    {:noreply, [{:chunk, chunk}], queue}
+  def handle_info({_, {:data, ":thump\n"}}, acc) do
+    Logger.debug("thump")
+    {:noreply, [], acc}
+  end
+
+  @impl GenStage
+  def handle_info({_, {:data, chunk}}, acc) do
+    # this is always sequential
+    case Embot.Sse.accumulate(acc, chunk) do
+      {:more, acc} ->
+        {:noreply, [], acc}
+
+      {:done, result} ->
+        {:noreply, [{:chunk, result}], []}
+    end
   end
 
   @impl GenStage
