@@ -24,6 +24,10 @@
     packages = forAllSystems ({pkgs}: rec {
       default = embot;
       embot = pkgs.callPackage ./embot.nix {};
+
+      deps = pkgs.writeShellScriptBin "generate-deps-nix" ''
+        ${pkgs.mix2nix}/bin/mix2nix > deps.nix
+      '';
     });
   };
 }
