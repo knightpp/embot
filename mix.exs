@@ -25,7 +25,8 @@ defmodule Embot.MixProject do
       {:gen_stage, "~> 1.2"},
       {:floki, "~> 0.36"},
       # optimized HTML parser
-      {:html5ever, "~> 0.16"}
+      {:html5ever, "~> 0.16"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

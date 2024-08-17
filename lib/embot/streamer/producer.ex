@@ -7,6 +7,7 @@ defmodule Embot.Streamer.Producer do
   end
 
   @doc "Used to put events OOB, like when reading backlog."
+  @spec sync_notify(term() | list(), pos_integer()) :: :ok
   def sync_notify(event, timeout \\ 5000) do
     GenStage.call(__MODULE__, {:notify, event}, timeout)
   end
@@ -34,6 +35,8 @@ defmodule Embot.Streamer.Producer do
 
   @impl GenStage
   def handle_info({_, {:data, chunk}}, acc) do
+    Logger.debug("accumulate sse chunk")
+
     # this is always sequential
     case Embot.Sse.accumulate(acc, chunk) do
       {:more, acc} ->
