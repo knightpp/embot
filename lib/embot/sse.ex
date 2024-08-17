@@ -1,4 +1,5 @@
 defmodule Embot.Sse do
+  @spec parse(String.t()) :: Enumerable.t()
   def parse(event) do
     event
     |> String.splitter("\n", trim: true)
@@ -8,6 +9,7 @@ defmodule Embot.Sse do
   @spec accumulate([String.t()], String.t()) :: {:more, [String.t()]} | {:done, String.t()}
   def accumulate(acc, data) do
     case :binary.split(data, "\n\n") do
+      [""] -> {:more, acc}
       [part] -> {:more, [part | acc]}
       [part, ""] -> {:done, IO.iodata_to_binary(:lists.reverse(acc, part))}
     end
