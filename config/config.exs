@@ -7,5 +7,5 @@ log_level =
     :debug
   end
 
-config :floki, :html_parser, Floki.HTMLParser.Html5ever
+config :floki, :html_parser, Floki.HTMLParser.FastHtml
 config :logger, level: log_level

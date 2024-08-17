@@ -28,3 +28,4 @@ emastobot-*.tar
 /.env
 /.*.env
 /*.db
+/result

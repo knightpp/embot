@@ -25,7 +25,11 @@ defmodule Embot.MixProject do
       {:gen_stage, "~> 1.2"},
       {:floki, "~> 0.36"},
       # optimized HTML parser
-      {:html5ever, "~> 0.16"},
+      # {:html5ever, "~> 0.16"},
+      # without rustler dep, you cannot force to build NIFs from source
+      # {:rustler, ">= 0.0.0", optional: true}
+      # use fast_html to support nix
+      {:fast_html, "~> 2.3"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
