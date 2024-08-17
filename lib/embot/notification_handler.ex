@@ -19,7 +19,7 @@ defmodule Embot.NotificationHandler do
     parse_link_and_send_reply!(req, data)
 
     notification_id = data |> Map.fetch!("id")
-    Logger.info("dismissing notification id=#{notification_id}")
+    Logger.notice("dismissing notification id=#{notification_id}")
     :ok = Mastodon.notification_dismiss!(req, notification_id)
     {:noreply, req}
   end

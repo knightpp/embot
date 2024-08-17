@@ -9,7 +9,10 @@ end
 with {:ok, var} <- System.fetch_env("LOG_LEVEL") do
   level =
     case var do
+      "error" -> :error
       "warning" -> :warning
+      "notice" -> :notice
+      "info" -> :info
       "debug" -> :debug
     end
 

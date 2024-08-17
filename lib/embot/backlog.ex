@@ -9,7 +9,7 @@ defmodule Embot.Backlog do
 
   def run(req) do
     mentions = Mastodon.notifications!(req, types: :mention)
-    Logger.info("found #{length(mentions)} unread mentions")
+    Logger.notice("found #{length(mentions)} unread mentions")
 
     mentions |> Enum.each(&Embot.Streamer.Producer.sync_notify({:mention, &1}))
   end
