@@ -104,32 +104,23 @@ defmodule Embot.NotificationHandler do
 
   defp upload_media!(_req, %{video: nil, image: nil}), do: nil
 
-  defp upload_media!(req, %{video: nil, image: image_url}) do
-    %{status: 200, body: image, headers: %{"content-type" => [image_mime]}} =
-      Req.get!(url: image_url, redirect: false)
+  defp upload_media!(req, %{video: nil, image: url}) do
+    %{status: 200, body: image, headers: %{"content-type" => [mime]}} =
+      Req.get!(url: url, redirect: false)
 
-    %{"id" => id} =
-      Mastodon.upload_media!(req, file: {image, content_type: image_mime, filename: image_url})
+    %{"id" => id} = Mastodon.upload_media!(req, file: {image, content_type: mime, filename: url})
 
     id
   end
 
-  # When there's video, the image is a thumbnail
-  defp upload_media!(req, %{video: video, image: _image}) do
-    # %{status: 200, body: thumbnail, headers: %{"content-type" => [image_mime]}} =
-    #   Req.get!(url: image, redirect: false)
-
+  defp upload_media!(req, %{video: video, video_mime: video_mime}) do
     %{status: 200, body: video_binary, headers: video_headers} =
       Req.get!(url: video, redirect: false)
 
-    %{"id" => id} =
-      Mastodon.upload_media!(req,
-        file:
-          {video_binary,
-           content_type: getContentType(video_headers, "video/mp4"), filename: video}
-        # Request with thumbnail of mp4 gif file was rejected, why???
-        # thumbnail: {thumbnail, content_type: image_mime, filename: image}
-      )
+    content_type = video_mime || getContentType(video_headers, "video/mp4")
+    file = {video_binary, content_type: content_type, filename: video}
+
+    %{"id" => id} = Mastodon.upload_media!(req, file: file)
 
     id
   end

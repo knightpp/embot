@@ -4,7 +4,8 @@ defmodule Embot.Fxtwi do
           description: String.t(),
           url: String.t(),
           video: nil | String.t(),
-          image: nil | String.t()
+          image: nil | String.t(),
+          video_mime: nil | String.t()
         }
 
   def patch_url!(link) do
@@ -30,38 +31,42 @@ defmodule Embot.Fxtwi do
   def parse!(body) do
     document = body |> Floki.parse_document!()
 
-    original_url =
-      document |> Floki.attribute("meta[property='og:url'][content]", "content") |> first!()
+    url = attribute!(document, "meta[property='og:url'][content]")
+    description = attribute!(document, "meta[property='og:description'][content]")
+    title = attribute!(document, "meta[property='og:title'][content]")
+    image = attribute(document, "meta[property='og:image'][content]")
+    video = attribute(document, "meta[property='og:video'][content]")
 
-    description =
-      document
-      |> Floki.attribute("meta[property='og:description'][content]", "content")
-      |> first!()
-
-    title =
-      document
-      |> Floki.attribute("meta[property='og:title'][content]", "content")
-      |> first!()
-
-    image =
-      document
-      |> Floki.attribute("meta[property='og:image'][content]", "content")
-      |> first()
-
-    video =
-      document |> Floki.attribute("meta[property='og:video'][content]", "content") |> first()
+    video_mime =
+      attribute(document, [
+        "meta[property='og:video:type'][content]",
+        "meta[property='twitter:player:stream:content_type'][content]"
+      ])
 
     %{
       video: video,
       description: description,
-      url: original_url,
+      url: url,
       title: title,
-      image: image
+      image: image,
+      video_mime: video_mime
     }
+  end
+
+  defp attribute(document, attributes) when is_list(attributes) do
+    Enum.find_value(attributes, fn attr ->
+      document |> Floki.attribute(attr) |> first()
+    end)
+  end
+
+  defp attribute(document, attr) do
+    document |> Floki.attribute(attr) |> first()
+  end
+
+  defp attribute!(document, attributes) do
+    attribute(document, attributes) || raise "unexpected nil while getting #{inspect(attributes)}"
   end
 
   defp first([]), do: nil
   defp first([a | _]), do: a
-
-  defp first!([a | _]), do: a
 end
