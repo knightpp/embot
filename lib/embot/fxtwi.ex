@@ -55,12 +55,12 @@ defmodule Embot.Fxtwi do
 
   defp attribute(document, attributes) when is_list(attributes) do
     Enum.find_value(attributes, fn attr ->
-      document |> Floki.attribute(attr) |> first()
+      document |> Floki.attribute(attr, "content") |> first()
     end)
   end
 
   defp attribute(document, attr) do
-    document |> Floki.attribute(attr) |> first()
+    document |> Floki.attribute(attr, "content") |> first()
   end
 
   defp attribute!(document, attributes) do
