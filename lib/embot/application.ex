@@ -9,10 +9,15 @@ defmodule Embot.Application do
     endpoint = Application.fetch_env!(:embot, :endpoint)
     req = Embot.Mastodon.new(endpoint, access_token)
 
-    children = [
-      {Embot.Streamer, req},
-      {Embot.Backlog, req}
-    ]
+    children =
+      if Application.fetch_env!(:embot, :env) == :test do
+        []
+      else
+        [
+          {Embot.Streamer, req},
+          {Embot.Backlog, req}
+        ]
+      end
 
     opts = [strategy: :one_for_one, name: Embot.Supervisor]
     Supervisor.start_link(children, opts)
