@@ -29,3 +29,5 @@ emastobot-*.tar
 /.*.env
 /*.db
 /result
+/.lexical
+/.direnv
