@@ -54,7 +54,7 @@ defmodule Embot.NotificationHandler do
 
         status =
           "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
-          |> String.slice(0, 500)
+          |> limit_string(500)
 
         Mastodon.post_status!(req,
           status: status,
@@ -133,6 +133,14 @@ defmodule Embot.NotificationHandler do
     case headers["content-type"] do
       [ct | _] -> ct
       _ -> default
+    end
+  end
+
+  defp limit_string(str, max) when max > 1 do
+    if String.length(str) <= max do
+      str
+    else
+      str |> String.slice(0, max - 1) |> Kernel.<>("…")
     end
   end
 end
