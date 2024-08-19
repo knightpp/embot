@@ -29,5 +29,11 @@
         ${pkgs.mix2nix}/bin/mix2nix > deps.nix
       '';
     });
+
+    devShells = forAllSystems ({pkgs}: {
+      default = pkgs.mkShell {
+        nativeBuildInputs = [pkgs.gnumake pkgs.cmake pkgs.gcc];
+      };
+    });
   };
 }
