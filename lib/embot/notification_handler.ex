@@ -52,8 +52,13 @@ defmodule Embot.NotificationHandler do
         media_id = upload_media!(req, twi)
         wait_media_processing!(req, media_id)
 
+        [status | _] =
+          "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
+          |> Enum.take(500)
+          |> String.chunk(:valid)
+
         Mastodon.post_status!(req,
-          status: "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}",
+          status: status,
           in_reply_to_id: status_id,
           visibility:
             if visibility == "direct" do
