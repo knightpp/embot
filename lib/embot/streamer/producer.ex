@@ -48,6 +48,16 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl GenStage
+  def handle_info({_, {:error, %Mint.TransportError{reason: :closed}}}, acc) do
+    {:stop, :shutdown, acc}
+  end
+
+  @impl GenStage
+  def handle_info({_, {:error, %Mint.TransportError{reason: :done}}}, acc) do
+    {:stop, :shutdown, acc}
+  end
+
+  @impl GenStage
   def handle_call({:notify, event}, _from, queue) do
     {:reply, :ok, [event], queue}
   end
