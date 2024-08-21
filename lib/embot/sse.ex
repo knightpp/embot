@@ -12,6 +12,7 @@ defmodule Embot.Sse do
       [""] -> {:more, acc}
       [part] -> {:more, [part | acc]}
       [part, ""] -> {:done, IO.iodata_to_binary(:lists.reverse(acc, part))}
+      [part_a, part_b] -> {:more, [[part_a, part_b] | acc]}
     end
   end
 

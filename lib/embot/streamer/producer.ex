@@ -35,14 +35,14 @@ defmodule Embot.Streamer.Producer do
 
   @impl GenStage
   def handle_info({_, {:data, chunk}}, acc) do
-    Logger.info("accumulate sse chunk, acc size #{Enum.count(acc)}")
-
     # this is always sequential
     case Embot.Sse.accumulate(acc, chunk) do
       {:more, acc} ->
+        Logger.info("accumulate sse chunk, acc size #{Enum.count(acc)}")
         {:noreply, [], acc}
 
       {:done, result} ->
+        Logger.info("send chunk")
         {:noreply, [{:chunk, result}], []}
     end
   end

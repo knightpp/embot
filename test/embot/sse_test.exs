@@ -44,6 +44,16 @@ defmodule Embot.SseTest do
     assert ^result = "event: first\nevent: second\nevent: third\n"
   end
 
+  test "accumulate two messages" do
+    assert {:more, acc} = Sse.accumulate([], "event: first\n")
+
+    assert {:more, acc} =
+             Sse.accumulate(acc, "event: second\n\n\nevent: third\n")
+
+    assert {:done, result} = Sse.accumulate(acc, "\n\n")
+    assert ^result = "event: first\nevent: second\nevent: third\n"
+  end
+
   test "parse comment" do
     assert [{:ok, {:comment, "hah this is comment"}}] =
              Sse.parse(": hah this is comment") |> Enum.to_list()
