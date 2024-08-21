@@ -20,38 +20,35 @@ defmodule Embot.SseTest do
 
   test "accumulate empty" do
     result = Sse.accumulate([], "")
-    assert result == {:more, []}
+    assert result == {[], [""]}
   end
 
   test "accumulate single line" do
     result = Sse.accumulate([], "event: first\n")
-    assert result == {:more, ["event: first\n"]}
+    assert result == {[], ["event: first\n"]}
   end
 
   test "accumulate multiple lines" do
-    assert {:more, acc} = Sse.accumulate([], "event: first\n")
-    assert {:more, acc} = Sse.accumulate(acc, "event: second\n")
-    assert {:more, acc} = Sse.accumulate(acc, "event: third\n")
-    rev = :lists.reverse(acc)
-    assert ^rev = ["event: first\n", "event: second\n", "event: third\n"]
+    assert {[], acc} = Sse.accumulate([], "event: first\n")
+    assert {[], acc} = Sse.accumulate(acc, "event: second\n")
+    assert {[], acc} = Sse.accumulate(acc, "event: third\n")
+    assert ^acc = ["event: first\nevent: second\nevent: third\n"]
   end
 
-  test "accumulate done" do
-    assert {:more, acc} = Sse.accumulate([], "event: first\n")
-    assert {:more, acc} = Sse.accumulate(acc, "event: second\n")
-    assert {:more, acc} = Sse.accumulate(acc, "event: third\n")
-    assert {:done, result} = Sse.accumulate(acc, "\n\n")
-    assert ^result = "event: first\nevent: second\nevent: third\n"
+  test "accumulate ready" do
+    assert {[], acc} = Sse.accumulate([], "event: first\n")
+    assert {[], acc} = Sse.accumulate(acc, "event: second\n")
+    assert {[], acc} = Sse.accumulate(acc, "event: third\n")
+    assert {["event: first\nevent: second\nevent: third"], ["\n"]} = Sse.accumulate(acc, "\n\n")
   end
 
   test "accumulate two messages" do
-    assert {:more, acc} = Sse.accumulate([], "event: first\n")
+    assert {[], acc} = Sse.accumulate([], "event: first\n")
 
-    assert {:more, acc} =
+    assert {["event: first\nevent: second"], acc} =
              Sse.accumulate(acc, "event: second\n\n\nevent: third\n")
 
-    assert {:done, result} = Sse.accumulate(acc, "\n\n")
-    assert ^result = "event: first\nevent: second\nevent: third\n"
+    assert {["\nevent: third"], ["\n"]} = Sse.accumulate(acc, "\n\n")
   end
 
   test "parse comment" do
