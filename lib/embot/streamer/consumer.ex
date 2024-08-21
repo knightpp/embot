@@ -14,11 +14,11 @@ defmodule Embot.Streamer.Consumer do
   def handle_events(events, _from, req) do
     events
     |> Enum.each(fn
-      {:chunk, chunk} ->
-        Embot.NotificationHandler.handle_sse(chunk, req)
-
       {:mention, mention} ->
         Embot.NotificationHandler.process_mention(mention, req)
+
+      chunk ->
+        Embot.NotificationHandler.handle_sse(chunk, req)
     end)
 
     {:noreply, [], req}
