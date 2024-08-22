@@ -6,14 +6,17 @@ defmodule Embot.Sse do
     |> Stream.map(&parse_line/1)
   end
 
-  @spec accumulate([String.t()], String.t()) :: {:more, [String.t()]} | {:done, String.t()}
-  def accumulate(acc, data) do
-    case :binary.split(data, "\n\n") do
-      [""] -> {:more, acc}
-      [part] -> {:more, [part | acc]}
-      [part, ""] -> {:done, IO.iodata_to_binary(:lists.reverse(acc, part))}
-      [part_a, part_b] -> {:more, [[part_a, part_b] | acc]}
-    end
+  @spec accumulate(acc :: [String.t()], data :: String.t()) ::
+          {ready :: [String.t()], acc :: [String.t()]}
+  def accumulate(acc, data)
+  def accumulate([], data), do: data |> split()
+  def accumulate([acc], data), do: (acc <> data) |> split()
+
+  @spec split(String.t()) :: {[String.t()], [String.t()]}
+  defp split(data) do
+    data
+    |> String.split("\n\n")
+    |> Enum.split(-1)
   end
 
   defp parse_line(line) do
