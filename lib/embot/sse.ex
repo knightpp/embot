@@ -6,9 +6,13 @@ defmodule Embot.Sse do
     |> Stream.map(&parse_line/1)
   end
 
+  @spec accumulate(acc :: [String.t()], data :: String.t()) ::
+          {ready :: [String.t()], acc :: [String.t()]}
+  def accumulate(acc, data)
   def accumulate([], data), do: data |> split()
   def accumulate([acc], data), do: (acc <> data) |> split()
 
+  @spec split(String.t()) :: {[String.t()], [String.t()]}
   defp split(data) do
     data
     |> String.split("\n\n")
