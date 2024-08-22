@@ -6,6 +6,7 @@ defmodule Embot.Sse do
     |> Stream.map(&parse_line/1)
   end
 
+  # Inspired by https://github.com/elixir-tesla/tesla/blob/1dc2c7e6c9bd3e98d671f69acb5775ce7603b3c2/lib/tesla/middleware/sse.ex#L46
   @spec accumulate(acc :: [String.t()], data :: String.t()) ::
           {ready :: [String.t()], acc :: [String.t()]}
   def accumulate(acc, data)
