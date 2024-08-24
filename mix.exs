@@ -47,7 +47,9 @@ defmodule Embot.MixProject do
       {:fast_html, "~> 2.3"},
       {:plug, "~> 1.16", only: [:test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:bandit, "~> 1.5", only: [:test]},
+      {:thousand_island, "~> 1.3", only: [:test]}
     ]
   end
 end
