@@ -1,6 +1,7 @@
 defmodule Embot.BacklogTest do
   use ExUnit.Case, async: true
   alias Embot.Backlog
+  @moduletag capture_log: true
 
   setup do
     Req.Test.verify_on_exit!()

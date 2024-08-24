@@ -45,6 +45,13 @@ defmodule Embot.Streamer.Producer do
     {:noreply, ready, acc}
   end
 
+  if Application.compile_env!(:embot, :env) == :test do
+    @impl GenStage
+    def handle_info({{Finch.HTTP1.Pool, _}, :done}, acc) do
+      {:noreply, [], acc}
+    end
+  end
+
   @impl GenStage
   def handle_info({_, {:error, %Mint.TransportError{reason: :closed}}}, acc) do
     {:stop, :shutdown, acc}
