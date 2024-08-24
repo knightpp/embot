@@ -14,7 +14,12 @@ defmodule Embot.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Embot.Application, []}
+      mod:
+        if Mix.env() != :test do
+          {Embot.Application, []}
+        else
+          []
+        end
     ]
   end
 
@@ -30,6 +35,7 @@ defmodule Embot.MixProject do
       # {:rustler, ">= 0.0.0", optional: true}
       # use fast_html to support nix
       {:fast_html, "~> 2.3"},
+      {:plug, "~> 1.16", only: [:test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
