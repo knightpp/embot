@@ -15,6 +15,7 @@ defmodule Embot.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test,
         "coveralls.cobertura": :test,
+        "coveralls.json": :test,
         release: :prod
       ]
     ]
