@@ -19,6 +19,8 @@ with {:ok, var} <- System.fetch_env("LOG_LEVEL") do
   config :logger, level: level
 end
 
-config :embot,
-  access_token: fetch_env.("BOT_ACCESS_TOKEN"),
-  endpoint: fetch_env.("BOT_ENDPOINT")
+if config_env() != :test do
+  config :embot,
+    access_token: fetch_env.("BOT_ACCESS_TOKEN"),
+    endpoint: fetch_env.("BOT_ENDPOINT")
+end
