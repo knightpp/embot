@@ -1,0 +1,52 @@
+name: Elixir CI
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "mix.exs"
+      - "mix.lock"
+      - "lib"
+      - "test"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "mix.exs"
+      - "mix.lock"
+      - "lib"
+      - "test"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.16'
+        otp-version: '25'
+        
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+        
+    - name: Install dependencies
+      run: mix deps.get --only test
+      
+    - name: Run tests
+      run: MIX_ENV=test mix coveralls.json
+      
+    - name: Upload results to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
