@@ -9,15 +9,20 @@ defmodule Embot.Fxtwi do
         }
 
   def patch_url!(link) do
-    url = URI.parse(link)
+    case patch_url(link) do
+      {:ok, patched} -> patched
+      {:error, term} -> raise term
+    end
+  end
 
-    patched =
-      case url.host do
-        "x.com" -> %URI{url | host: "fixupx.com"}
-        "twitter.com" -> %URI{url | host: "fxtwitter.com"}
-      end
+  def patch_url(link) do
+    uri = URI.parse(link)
 
-    URI.to_string(patched)
+    case uri.host do
+      "x.com" -> {:ok, %URI{uri | host: "fixupx.com"} |> URI.to_string()}
+      "twitter.com" -> {:ok, %URI{uri | host: "fxtwitter.com"} |> URI.to_string()}
+      host -> {:error, "unknown host=#{host} of link=#{link}"}
+    end
   end
 
   @spec get!(String.t()) :: Embot.Fxtwi.t()
