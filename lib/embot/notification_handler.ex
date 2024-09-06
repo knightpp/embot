@@ -42,11 +42,16 @@ defmodule Embot.NotificationHandler do
       Floki.attribute(content, "a[href^='https://x.com']", "href") ++
         Floki.attribute(content, "a[href^='https://twitter.com']", "href")
 
-    case Enum.take(links, 1) do
-      [] ->
-        Logger.info("no links in #{status_id}")
+    if links == [] do
+      Logger.info("no links in #{status_id}")
+    else
+      visibility =
+        case visibility do
+          "direct" -> "direct"
+          _ -> "unlisted"
+        end
 
-      [link] ->
+      Enum.each(links, fn link ->
         twi = Embot.Fxtwi.get!(link)
 
         media_id = upload_media!(req, twi)
@@ -59,14 +64,10 @@ defmodule Embot.NotificationHandler do
         Mastodon.post_status!(req,
           status: status,
           in_reply_to_id: status_id,
-          visibility:
-            if visibility == "direct" do
-              "direct"
-            else
-              "unlisted"
-            end,
+          visibility: visibility,
           "media_ids[]": media_id
         )
+      end)
     end
   end
 
