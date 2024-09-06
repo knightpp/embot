@@ -52,9 +52,9 @@ defmodule Embot.NotificationHandler do
         end
 
       links
-      |> Stream.take(10)
       |> Enum.sort()
       |> Stream.dedup()
+      |> Stream.take(10)
       |> Task.async_stream(
         fn link ->
           twi = Embot.Fxtwi.get!(link)
