@@ -51,23 +51,32 @@ defmodule Embot.NotificationHandler do
           _ -> "unlisted"
         end
 
-      Enum.each(links, fn link ->
-        twi = Embot.Fxtwi.get!(link)
+      links
+      |> Stream.take(10)
+      |> Enum.sort()
+      |> Stream.dedup()
+      |> Task.async_stream(
+        fn link ->
+          twi = Embot.Fxtwi.get!(link)
 
-        media_id = upload_media!(req, twi)
-        wait_media_processing!(req, media_id)
+          media_id = upload_media!(req, twi)
+          wait_media_processing!(req, media_id)
 
-        status =
-          "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
-          |> limit_string(500)
+          status =
+            "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
+            |> limit_string(500)
 
-        Mastodon.post_status!(req,
-          status: status,
-          in_reply_to_id: status_id,
-          visibility: visibility,
-          "media_ids[]": media_id
-        )
-      end)
+          Mastodon.post_status!(req,
+            status: status,
+            in_reply_to_id: status_id,
+            visibility: visibility,
+            "media_ids[]": media_id
+          )
+        end,
+        ordered: false,
+        timeout: :timer.minutes(2)
+      )
+      |> Stream.run()
     end
   end
 
