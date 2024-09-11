@@ -21,7 +21,7 @@ defmodule Embot.NotificationHandler do
     notification_id = data |> Map.fetch!("id")
     Logger.notice("dismissing notification id=#{notification_id}")
     :ok = Mastodon.notification_dismiss!(req, notification_id)
-    {:noreply, req}
+    :ok
   end
 
   defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true, "acct" => acct}}) do
@@ -98,8 +98,7 @@ defmodule Embot.NotificationHandler do
       end
 
     if type != :ok do
-      Logger.warning("got unknown notification")
-      dbg(notification)
+      Logger.warning("notification type=#{notification["type"]} is unknown")
     end
   end
 
