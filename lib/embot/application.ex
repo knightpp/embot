@@ -7,7 +7,8 @@ defmodule Embot.Application do
   def start(_type, _args) do
     children =
       [
-        Embot.BotsSupervisor
+        Embot.BotsSupervisor,
+        {Task.Supervisor, name: Embot.HandlerTaskSupervisor}
       ] ++
         if Application.fetch_env!(:embot, :env) != :test do
           [Embot.Loader]

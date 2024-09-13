@@ -24,12 +24,7 @@ defmodule Embot.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod:
-        if Mix.env() != :test do
-          {Embot.Application, []}
-        else
-          []
-        end
+      mod: {Embot.Application, []}
     ]
   end
 

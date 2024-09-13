@@ -63,4 +63,39 @@ defmodule Embot.NotificationHandlerTest do
     assert log_lines =~ "no links in 4242"
     assert log_lines =~ "dismissing notification id=42"
   end
+
+  @tag capture_log: true
+  test "when there are no ogp" do
+    Req.Test.expect(NotifHandler, 2, fn conn ->
+      case Plug.Conn.request_url(conn) do
+        "https://fxtwitter.com/b" -> Req.Test.html(conn, "")
+        "https://fixupx.com/a" -> Req.Test.html(conn, "")
+      end
+    end)
+
+    # Req.Test.expect(NotifHandler, &Req.Test.html(&1, ""))
+    req = Req.new(plug: {Req.Test, NotifHandler})
+
+    map = %{
+      "id" => 42,
+      "account" => %{"acct" => "test"},
+      "type" => "mention",
+      "status" => %{
+        "id" => 4242,
+        "content" => """
+          <a href="https://x.com/a">Link 1</a>
+          <a href="https://twitter.com/b">Link 2</a>
+        """,
+        "visibility" => "public"
+      }
+    }
+
+    assert {:error, errors} = NotificationHandler.process_mention(map, req)
+
+    for {error, _} <- errors do
+      assert %RuntimeError{
+               message: "unexpected nil while getting \"meta[property='og:url'][content]\""
+             } == error
+    end
+  end
 end

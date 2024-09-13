@@ -16,16 +16,17 @@ defmodule Embot.NotificationHandler do
   end
 
   def process_mention(data, req) do
-    parse_link_and_send_reply!(req, data)
-
-    notification_id = data |> Map.fetch!("id")
-    Logger.notice("dismissing notification id=#{notification_id}")
-    :ok = Mastodon.notification_dismiss!(req, notification_id)
-    :ok
+    with :ok <- parse_link_and_send_reply!(req, data) do
+      notification_id = data |> Map.fetch!("id")
+      Logger.notice("dismissing notification id=#{notification_id}")
+      :ok = Mastodon.notification_dismiss!(req, notification_id)
+      :ok
+    end
   end
 
   defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true, "acct" => acct}}) do
     Logger.warning("got a message from bot! @#{acct}")
+    :ok
   end
 
   defp parse_link_and_send_reply!(
@@ -44,6 +45,7 @@ defmodule Embot.NotificationHandler do
 
     if links == [] do
       Logger.info("no links in #{status_id}")
+      :ok
     else
       visibility =
         case visibility do
@@ -51,32 +53,44 @@ defmodule Embot.NotificationHandler do
           _ -> "unlisted"
         end
 
-      links
-      |> Enum.sort()
-      |> Stream.dedup()
-      |> Stream.take(10)
-      |> Task.async_stream(
-        fn link ->
-          twi = Embot.Fxtwi.get!(link)
+      links_stream =
+        links
+        |> Enum.sort()
+        |> Stream.dedup()
+        |> Stream.take(10)
 
-          media_id = upload_media!(req, twi)
-          wait_media_processing!(req, media_id)
+      results =
+        Task.Supervisor.async_stream_nolink(
+          Embot.HandlerTaskSupervisor,
+          links_stream,
+          fn link ->
+            twi = Embot.Fxtwi.get!(req, link)
 
-          status =
-            "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
-            |> limit_string(500)
+            media_id = upload_media!(req, twi)
+            wait_media_processing!(req, media_id)
 
-          Mastodon.post_status!(req,
-            status: status,
-            in_reply_to_id: status_id,
-            visibility: visibility,
-            "media_ids[]": media_id
-          )
-        end,
-        ordered: false,
-        timeout: :timer.minutes(2)
-      )
-      |> Stream.run()
+            status =
+              "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
+              |> limit_string(500)
+
+            Mastodon.post_status!(req,
+              status: status,
+              in_reply_to_id: status_id,
+              visibility: visibility,
+              "media_ids[]": media_id
+            )
+          end,
+          ordered: false,
+          timeout: :timer.minutes(2)
+        )
+        |> Stream.filter(&match?({:exit, _}, &1))
+        |> Stream.map(fn {:exit, reason} -> reason end)
+        |> Enum.to_list()
+
+      case results do
+        [] -> :ok
+        errors -> {:error, errors}
+      end
     end
   end
 
@@ -100,6 +114,8 @@ defmodule Embot.NotificationHandler do
     if type != :ok do
       Logger.warning("notification type=#{notification["type"]} is unknown")
     end
+
+    :ok
   end
 
   defp wait_media_processing!(_req, nil), do: :no_media

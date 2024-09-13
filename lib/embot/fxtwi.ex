@@ -25,10 +25,13 @@ defmodule Embot.Fxtwi do
     end
   end
 
-  @spec get!(String.t()) :: Embot.Fxtwi.t()
-  def get!(url) do
+  @spec get!(Req.Request.t(), String.t()) :: Embot.Fxtwi.t()
+  def get!(req, url) do
     url = patch_url!(url)
-    %{status: 200, body: body} = Req.get!(url: url, redirect: false, user_agent: "curl")
+
+    %{status: 200, body: body} =
+      Req.get!(req, url: url, redirect: false, user_agent: "curl", auth: "")
+
     parse!(body)
   end
 
