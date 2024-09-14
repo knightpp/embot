@@ -3,6 +3,8 @@ defmodule Embot.NotificationHandlerTest do
   import ExUnit.CaptureLog
   alias Embot.NotificationHandler
 
+  @html File.read!("test/data/gif.html")
+
   setup do
     Req.Test.verify_on_exit!()
   end
@@ -97,5 +99,38 @@ defmodule Embot.NotificationHandlerTest do
                message: "unexpected nil while getting \"meta[property='og:url'][content]\""
              } == error
     end
+  end
+
+  @tag capture_log: true
+  test "it works" do
+    Req.Test.expect(NotifHandler, 9, fn conn ->
+      case Plug.Conn.request_url(conn) do
+        "https://fxtwitter.com/b" -> Req.Test.html(conn, @html)
+        "https://fixupx.com/a" -> Req.Test.html(conn, @html)
+        "http://www.example.com/api/v2/media" -> Req.Test.json(conn, %{"id" => 1})
+        "http://www.example.com/api/v1/media/1" -> Req.Test.json(conn, %{})
+        "http://www.example.com/api/v1/statuses" -> Req.Test.json(conn, %{})
+        "http://www.example.com/api/v1/notifications/42/dismiss" -> Req.Test.json(conn, %{})
+        url -> flunk("Unexpected url #{url}")
+      end
+    end)
+
+    req = Req.new(plug: {Req.Test, NotifHandler})
+
+    map = %{
+      "id" => 42,
+      "account" => %{"acct" => "test"},
+      "type" => "mention",
+      "status" => %{
+        "id" => 4242,
+        "content" => """
+          <a href="https://x.com/a">Link 1</a>
+          <a href="https://twitter.com/b">Link 2</a>
+        """,
+        "visibility" => "public"
+      }
+    }
+
+    assert :ok = NotificationHandler.process_mention(map, req)
   end
 end
