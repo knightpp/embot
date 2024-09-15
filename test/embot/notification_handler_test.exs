@@ -10,7 +10,12 @@ defmodule Embot.NotificationHandlerTest do
   end
 
   test "when unknown notification type" do
-    Req.Test.expect(NotifHandler, &Req.Test.json(&1, %{}))
+    Req.Test.expect(NotifHandler, fn conn ->
+      assert conn.method == "POST"
+      assert conn.request_path == "/api/v1/notifications/42/dismiss"
+      Req.Test.json(conn, %{})
+    end)
+
     req = Req.new(plug: {Req.Test, NotifHandler})
     map = %{"id" => 42, "type" => :test}
 
@@ -24,7 +29,12 @@ defmodule Embot.NotificationHandlerTest do
   end
 
   test "when notification from bot" do
-    Req.Test.expect(NotifHandler, &Req.Test.json(&1, %{}))
+    Req.Test.expect(NotifHandler, fn conn ->
+      assert conn.method == "POST"
+      assert conn.request_path == "/api/v1/notifications/42/dismiss"
+      Req.Test.json(conn, %{})
+    end)
+
     req = Req.new(plug: {Req.Test, NotifHandler})
     map = %{"id" => 42, "account" => %{"bot" => true, "acct" => "test"}}
 
@@ -38,7 +48,12 @@ defmodule Embot.NotificationHandlerTest do
   end
 
   test "when no links" do
-    Req.Test.expect(NotifHandler, &Req.Test.json(&1, %{}))
+    Req.Test.expect(NotifHandler, fn conn ->
+      assert conn.method == "POST"
+      assert conn.request_path == "/api/v1/notifications/42/dismiss"
+      Req.Test.json(conn, %{})
+    end)
+
     req = Req.new(plug: {Req.Test, NotifHandler})
 
     map = %{
