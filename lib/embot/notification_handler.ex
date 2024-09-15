@@ -39,6 +39,8 @@ defmodule Embot.NotificationHandler do
        ) do
     content = content |> Floki.parse_document!()
 
+    args = Embot.Command.parse(Floki.text(content))
+
     links =
       Floki.attribute(content, "a[href^='https://x.com']", "href") ++
         Floki.attribute(content, "a[href^='https://twitter.com']", "href")
@@ -73,11 +75,17 @@ defmodule Embot.NotificationHandler do
               "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
               |> limit_string(500)
 
-            Mastodon.post_status!(req,
-              status: status,
-              in_reply_to_id: status_id,
-              visibility: visibility,
-              "media_ids[]": media_id
+            Mastodon.post_status!(
+              req,
+              Keyword.merge(
+                [
+                  status: status,
+                  in_reply_to_id: status_id,
+                  visibility: visibility,
+                  "media_ids[]": media_id
+                ],
+                args_to_request(args)
+              )
             )
           end,
           ordered: false,
@@ -167,5 +175,12 @@ defmodule Embot.NotificationHandler do
     else
       str |> String.slice(0, max - 1) |> Kernel.<>("…")
     end
+  end
+
+  defp args_to_request(args) do
+    Enum.reduce(args, [], fn
+      {:cw, nil}, acc -> Keyword.put(acc, :sensitive, "true")
+      {:cw, spoiler_text}, acc -> [{:sensitive, "true"}, {:spoiler_text, spoiler_text} | acc]
+    end)
   end
 end

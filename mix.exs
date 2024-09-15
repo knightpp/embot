@@ -40,6 +40,7 @@ defmodule Embot.MixProject do
       # {:rustler, ">= 0.0.0", optional: true}
       # use fast_html to support nix
       {:fast_html, "~> 2.3"},
+      {:nimble_parsec, "~> 1.4"},
       {:plug, "~> 1.16", only: [:test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
