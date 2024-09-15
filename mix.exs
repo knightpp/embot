@@ -44,7 +44,8 @@ defmodule Embot.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:bandit, "~> 1.5", only: [:test]},
-      {:thousand_island, "~> 1.3", only: [:test]}
+      {:thousand_island, "~> 1.3", only: [:test]},
+      {:bypass, "~> 2.1", only: [:test]}
     ]
   end
 end
