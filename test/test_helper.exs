@@ -14,4 +14,5 @@ defmodule TestHelper do
   end
 end
 
+ExUnit.configure(exclude: [:benchmark])
 ExUnit.start()
