@@ -18,7 +18,13 @@ defmodule Embot.Command do
 
   cmd = prefix |> concat(cw) |> optional(arg) |> reduce({:group, []})
 
-  defparsec(:command, eventually(cmd), inline: true)
+  command =
+    repeat(
+      ignore(ascii_string([not: ?-], min: 0))
+      |> concat(cmd)
+    )
+
+  defparsec(:command, command, inline: true)
 
   defp group([key]), do: {key, nil}
   defp group([key, value]), do: {key, value}

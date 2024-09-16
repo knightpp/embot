@@ -12,12 +12,17 @@ defmodule Embot.CommandTest do
   end
 
   test "no command" do
-    assert {:error, _, _, _, _, _} = Command.command(~s/@bot@example.com\n@foo@bar.baz"/)
+    assert {:ok, [], _, _, _, _} = Command.command(~s/@bot@example.com\n@foo@bar.baz"/)
   end
 
   test "cw with empty arg" do
     assert {:ok, [cw: nil], _, _, _, _} =
              Command.command(~s/@bot@example.com -cw="" @foo@bar.baz"/)
+  end
+
+  test "cw multiple commands" do
+    assert {:ok, [cw: nil, cw: nil, cw: nil], _, _, _, _} =
+             Command.command(~s/-cw -cw -cw/)
   end
 
   @tag :benchmark
