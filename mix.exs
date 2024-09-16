@@ -46,7 +46,8 @@ defmodule Embot.MixProject do
       {:excoveralls, "~> 0.18", only: :test},
       {:bandit, "~> 1.5", only: [:test]},
       {:thousand_island, "~> 1.3", only: [:test]},
-      {:bypass, "~> 2.1", only: [:test]}
+      {:bypass, "~> 2.1", only: [:test]},
+      {:benchee, "~> 1.0", only: :dev}
     ]
   end
 end
