@@ -1,6 +1,7 @@
 defmodule Embot.Streamer.Producer do
   require Logger
   use GenStage
+  alias Embot.KeepAlive
 
   def start_link(req) do
     GenStage.start_link(__MODULE__, req, name: __MODULE__)
@@ -14,27 +15,34 @@ defmodule Embot.Streamer.Producer do
 
   @impl GenStage
   def init(req) do
-    %{status: 200} = Embot.Mastodon.stream_notifications!(req, :self)
+    case KeepAlive.start_link(:ok) do
+      {:ok, pid} ->
+        %{status: 200} = Embot.Mastodon.stream_notifications!(req, :self)
+        {:producer, {pid, []}}
 
-    {:producer, []}
+      {:error, reason} ->
+        {:stop, reason}
+    end
   end
 
   @impl GenStage
-  def handle_demand(_demand, queue) do
+  def handle_demand(_demand, state) do
     # Ignore demand, see https://hexdocs.pm/gen_stage/GenStage.html#module-buffering-demand
 
     # {return, rest} = Enum.split(queue, demand)
-    {:noreply, [], queue}
+    {:noreply, [], state}
   end
 
   @impl GenStage
-  def handle_info({_, {:data, ":thump\n"}}, acc) do
+  def handle_info({_, {:data, ":thump\n"}}, {pid, acc}) do
+    KeepAlive.keep_alive(pid)
     Logger.debug("thump")
-    {:noreply, [], acc}
+    {:noreply, [], {pid, acc}}
   end
 
   @impl GenStage
-  def handle_info({_, {:data, chunk}}, acc) do
+  def handle_info({_, {:data, chunk}}, {pid, acc}) do
+    KeepAlive.keep_alive(pid)
     # this is always sequential
     {ready, acc} = Embot.Sse.accumulate(acc, chunk)
 
@@ -42,7 +50,7 @@ defmodule Embot.Streamer.Producer do
       "accumulate sse chunk: ready_size=#{Enum.count(ready)}, acc_size=#{Enum.count(acc)}"
     )
 
-    {:noreply, ready, acc}
+    {:noreply, ready, {pid, acc}}
   end
 
   if Application.compile_env!(:embot, :env) == :test do
@@ -53,17 +61,17 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl GenStage
-  def handle_info({_, {:error, %Mint.TransportError{reason: :closed}}}, acc) do
-    {:stop, :shutdown, acc}
+  def handle_info({_, {:error, %Mint.TransportError{reason: :closed}}}, state) do
+    {:stop, :shutdown, state}
   end
 
   @impl GenStage
-  def handle_info({_, {:error, %Mint.TransportError{reason: :done}}}, acc) do
-    {:stop, :shutdown, acc}
+  def handle_info({_, {:error, %Mint.TransportError{reason: :done}}}, state) do
+    {:stop, :shutdown, state}
   end
 
   @impl GenStage
-  def handle_call({:notify, event}, _from, queue) do
-    {:reply, :ok, [event], queue}
+  def handle_call({:notify, event}, _from, state) do
+    {:reply, :ok, [event], state}
   end
 end
