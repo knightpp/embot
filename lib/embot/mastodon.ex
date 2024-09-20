@@ -55,14 +55,11 @@ defmodule Embot.Mastodon do
     )
   end
 
-  def notification_dismiss!(req, notification_id) do
-    %{status: 200} =
-      Req.post!(req,
-        url: "/api/v1/notifications/:id/dismiss",
-        path_params: [id: notification_id]
-      )
-
-    :ok
+  def notification_dismiss(req, notification_id) do
+    Req.post(req,
+      url: "/api/v1/notifications/:id/dismiss",
+      path_params: [id: notification_id]
+    )
   end
 
   def post_status!(req, form_data) do

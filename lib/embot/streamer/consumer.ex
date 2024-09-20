@@ -1,24 +1,38 @@
 defmodule Embot.Streamer.Consumer do
   use GenStage
 
+  alias Embot.Streamer.PanicStorage
+
   def start_link(req) do
     GenStage.start_link(__MODULE__, req)
   end
 
   @impl GenStage
   def init(req) do
-    {:consumer, req, subscribe_to: [{Embot.Streamer.Producer, max_demand: 1}]}
+    case PanicStorage.start_link(nil) do
+      {:ok, ps} ->
+        {:consumer, {ps, req}, subscribe_to: [{Embot.Streamer.Producer, max_demand: 1}]}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
   end
 
   @impl GenStage
-  def handle_events(events, _from, req) do
+  def handle_events(events, _from, {ps, req}) do
     events
-    |> Enum.each(fn
-      {:mention, mention} ->
-        Embot.NotificationHandler.process_mention(mention, req)
+    |> Enum.each(fn event ->
+      tmp_id = PanicStorage.push(ps, event)
 
-      chunk ->
-        Embot.NotificationHandler.handle_sse(chunk, req)
+      case event do
+        {:mention, mention} ->
+          :ok = Embot.NotificationHandler.process_mention(mention, req)
+
+        chunk ->
+          Embot.NotificationHandler.handle_sse(chunk, req) |> Enum.each(fn :ok -> :ok end)
+      end
+
+      PanicStorage.remove(ps, tmp_id)
     end)
 
     {:noreply, [], req}

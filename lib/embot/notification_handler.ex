@@ -12,15 +12,20 @@ defmodule Embot.NotificationHandler do
         Logger.error("could not parse sse line", error: inspect(error))
         false
     end)
-    |> Enum.each(fn {:ok, {_, data}} -> process_mention(data, req) end)
+    |> Enum.map(fn {:ok, {_, data}} -> process_mention(data, req) end)
   end
 
   def process_mention(data, req) do
     with :ok <- parse_link_and_send_reply!(req, data) do
       notification_id = data |> Map.fetch!("id")
       Logger.notice("dismissing notification id=#{notification_id}")
-      :ok = Mastodon.notification_dismiss!(req, notification_id)
-      :ok
+
+      with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do
+        case status do
+          200 -> :ok
+          404 -> :ok
+        end
+      end
     end
   end
 

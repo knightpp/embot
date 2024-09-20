@@ -71,7 +71,8 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl GenStage
-  def handle_call({:notify, event}, _from, state) do
-    {:reply, :ok, [event], state}
+  def handle_call({:notify, payload}, _from, state) do
+    events = if is_list(payload), do: payload, else: [payload]
+    {:reply, :ok, events, state}
   end
 end
