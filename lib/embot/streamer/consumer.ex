@@ -35,7 +35,7 @@ defmodule Embot.Streamer.Consumer do
       PanicStorage.remove(ps, tmp_id)
     end)
 
-    {:noreply, [], req}
+    {:noreply, [], {ps, req}}
   end
 end
 
