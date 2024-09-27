@@ -46,10 +46,6 @@ defmodule Embot.Streamer.Producer do
     # this is always sequential
     {ready, acc} = Embot.Sse.accumulate(acc, chunk)
 
-    Logger.info(
-      "accumulate sse chunk: ready_size=#{Enum.count(ready)}, acc_size=#{Enum.count(acc)}"
-    )
-
     {:noreply, ready, {pid, acc}}
   end
 
