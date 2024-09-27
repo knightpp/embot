@@ -32,7 +32,7 @@
 
     devShells = forAllSystems ({pkgs}: {
       default = pkgs.mkShell {
-        nativeBuildInputs = [pkgs.gnumake pkgs.cmake pkgs.gcc];
+        nativeBuildInputs = [pkgs.gnumake pkgs.cmake];
       };
     });
   };
