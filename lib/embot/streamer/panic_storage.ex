@@ -5,12 +5,12 @@ defmodule Embot.Streamer.PanicStorage do
     GenServer.start_link(__MODULE__, arg)
   end
 
-  @spec push(GenServer.t(), term()) :: integer()
+  @spec push(GenServer.server(), term()) :: integer()
   def push(server, event) do
     GenServer.call(server, {:push, event})
   end
 
-  @spec remove(GenServer.t(), integer()) :: :ok
+  @spec remove(GenServer.server(), integer()) :: :ok
   def remove(server, id) do
     GenServer.call(server, {:remove, id})
   end
