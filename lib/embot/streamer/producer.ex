@@ -54,16 +54,21 @@ defmodule Embot.Streamer.Producer do
     def handle_info({{Finch.HTTP1.Pool, _}, :done}, acc) do
       {:noreply, [], acc}
     end
+  else
+    @impl GenStage
+    def handle_info({{Finch.HTTP1.Pool, _}, :done}, state) do
+      {:stop, {:shutdown, :pool_done}, state}
+    end
   end
 
   @impl GenStage
   def handle_info({_, {:error, %Mint.TransportError{reason: :closed}}}, state) do
-    {:stop, :shutdown, state}
+    {:stop, {:shutdown, :transport_closed}, state}
   end
 
   @impl GenStage
   def handle_info({_, {:error, %Mint.TransportError{reason: :done}}}, state) do
-    {:stop, :shutdown, state}
+    {:stop, {:shutdown, :transport_done}, state}
   end
 
   @impl GenStage
