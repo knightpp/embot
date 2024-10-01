@@ -2,22 +2,10 @@ defmodule Embot.NotificationHandler do
   require Logger
   alias Embot.Mastodon
 
-  def handle_sse(sse_data, req) do
-    Embot.Sse.parse(sse_data)
-    |> Stream.filter(fn
-      {:ok, {key, _}} ->
-        key == :data
+  def process_mention(event, req) do
 
-      {:error, error} ->
-        Logger.error("could not parse sse line", error: inspect(error))
-        false
-    end)
-    |> Enum.map(fn {:ok, {_, data}} -> process_mention(data, req) end)
-  end
-
-  def process_mention(data, req) do
-    with :ok <- parse_link_and_send_reply!(req, data) do
-      notification_id = data |> Map.fetch!("id")
+    with :ok <- parse_link_and_send_reply!(req, event) do
+      notification_id = event |> Map.fetch!("id")
       Logger.notice("dismissing notification id=#{notification_id}")
 
       with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do

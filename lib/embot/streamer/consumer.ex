@@ -1,5 +1,6 @@
 defmodule Embot.Streamer.Consumer do
   use GenStage
+  require Logger
 
   alias Embot.Streamer.PanicStorage
 
@@ -20,8 +21,7 @@ defmodule Embot.Streamer.Consumer do
 
   @impl GenStage
   def handle_events(events, _from, {ps, req}) do
-    events
-    |> Enum.each(fn event ->
+    Enum.each(events, fn event ->
       tmp_id = PanicStorage.push(ps, event)
 
       case event do
@@ -29,13 +29,27 @@ defmodule Embot.Streamer.Consumer do
           :ok = Embot.NotificationHandler.process_mention(mention, req)
 
         chunk ->
-          Embot.NotificationHandler.handle_sse(chunk, req) |> Enum.each(fn :ok -> :ok end)
+          parse_sse(chunk)
+          |> Enum.map(&Embot.NotificationHandler.process_mention(&1, req))
       end
 
       PanicStorage.remove(ps, tmp_id)
     end)
 
     {:noreply, [], {ps, req}}
+  end
+
+  defp parse_sse(sse_data) do
+    Embot.Sse.parse(sse_data)
+    |> Stream.filter(fn
+      {:ok, {key, _}} ->
+        key == :data
+
+      {:error, error} ->
+        Logger.error("could not parse sse line", error: inspect(error))
+        false
+    end)
+    |> Stream.map(fn {:ok, {_, data}} -> data end)
   end
 end
 
