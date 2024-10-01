@@ -39,7 +39,12 @@ defmodule Embot.NotificationHandler do
          %{
            "account" => %{"acct" => acct},
            "type" => "mention",
-           "status" => %{"id" => status_id, "content" => content, "visibility" => visibility}
+           "status" => %{
+             "id" => status_id,
+             "content" => content,
+             "visibility" => visibility,
+             "edited_at" => nil
+           }
          }
        ) do
     content = content |> Floki.parse_document!()
@@ -107,6 +112,14 @@ defmodule Embot.NotificationHandler do
     end
   end
 
+  defp parse_link_and_send_reply!(_req, %{
+         "type" => "mention",
+         "status" => %{"edited_at" => _notnil}
+       }) do
+    Logger.notice("discarded edit of previous status")
+    :ok
+  end
+
   defp parse_link_and_send_reply!(_req, notification) do
     type =
       case notification["type"] do
@@ -121,6 +134,7 @@ defmodule Embot.NotificationHandler do
         "admin.report" -> :ok
         "severed_relationships" -> :ok
         "moderation_warning" -> :ok
+        "mention" -> :ok
         _ -> :unknown
       end
 
