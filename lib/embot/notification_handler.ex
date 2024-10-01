@@ -3,6 +3,7 @@ defmodule Embot.NotificationHandler do
   alias Embot.Mastodon
 
   def process_mention(event, req) do
+    Logger.info("received event #{event["id"]} at #{event["created_at"]}")
 
     with :ok <- parse_link_and_send_reply!(req, event) do
       notification_id = event |> Map.fetch!("id")
@@ -128,6 +129,8 @@ defmodule Embot.NotificationHandler do
 
     if type != :ok do
       Logger.warning("notification type=#{notification["type"]} is unknown")
+    else
+      Logger.info("not handling notification=#{notification["id"]} type=#{type}")
     end
 
     :ok
