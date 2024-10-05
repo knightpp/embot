@@ -35,6 +35,7 @@ defmodule Embot.MixProject do
       {:gen_stage, "~> 1.2"},
       {:floki, "~> 0.36"},
       {:nimble_parsec, "~> 1.4"},
+      {:observer_cli, "~> 1.7"},
       {:plug, "~> 1.16", only: [:test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
