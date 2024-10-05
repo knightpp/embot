@@ -1,9 +1,10 @@
 defmodule Embot.BotsSupervisor do
   use DynamicSupervisor
 
-  def start_child(req) do
-    DynamicSupervisor.start_child(__MODULE__, {Embot.Streamer, req})
-    DynamicSupervisor.start_child(__MODULE__, {Embot.Backlog, req})
+  def start_child!(req) do
+    {:ok, _} = DynamicSupervisor.start_child(__MODULE__, {Embot.Streamer, req})
+    {:ok, _} = DynamicSupervisor.start_child(__MODULE__, {Embot.Backlog, req})
+    :ok
   end
 
   def start_link(_) do
