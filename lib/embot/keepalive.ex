@@ -23,6 +23,6 @@ defmodule Embot.KeepAlive do
 
   @impl true
   def handle_info(:timeout, nil) do
-    {:stop, :timeout, nil}
+    {:stop, {:shutdown, :timeout}, nil}
   end
 end
