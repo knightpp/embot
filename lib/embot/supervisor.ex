@@ -1,7 +1,7 @@
 defmodule Embot.BotsSupervisor do
   use DynamicSupervisor
 
-  def start_child!(req) do
+  def start_child(req) do
     DynamicSupervisor.start_child(__MODULE__, {Embot.Streamer, req})
   end
 

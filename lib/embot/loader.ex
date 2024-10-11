@@ -10,6 +10,6 @@ defmodule Embot.Loader do
     endpoint = Application.fetch_env!(:embot, :endpoint)
     req = Embot.Mastodon.new(endpoint, access_token)
 
-    :ok = Embot.BotsSupervisor.start_child!(req)
+    {:ok, _pid} = Embot.BotsSupervisor.start_child(req)
   end
 end
