@@ -72,6 +72,11 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl GenStage
+  def handle_info({_, {:error, %Mint.TransportError{reason: :timeout}}}, state) do
+    {:stop, {:shutdown, :transport_timeout}, state}
+  end
+
+  @impl GenStage
   def handle_call({:notify, payload}, _from, state) do
     events = if is_list(payload), do: payload, else: [payload]
     {:reply, :ok, events, state}
