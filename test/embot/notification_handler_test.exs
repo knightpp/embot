@@ -9,76 +9,90 @@ defmodule Embot.NotificationHandlerTest do
     Req.Test.verify_on_exit!()
   end
 
-  test "when unknown notification type" do
-    Req.Test.expect(NotifHandler, fn conn ->
-      assert conn.method == "POST"
-      assert conn.request_path == "/api/v1/notifications/42/dismiss"
-      Req.Test.json(conn, %{})
-    end)
-
-    req = Req.new(plug: {Req.Test, NotifHandler})
-    map = %{"id" => 42, "type" => :test}
-
-    log_lines =
-      capture_log(fn ->
-        NotificationHandler.process_mention(map, req)
+  describe "should always dismiss notification" do
+    setup do
+      Req.Test.expect(NotifHandler, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/api/v1/notifications/42/dismiss"
+        Req.Test.json(conn, %{})
       end)
 
-    assert log_lines =~ "notification type=test is unknown"
-    assert log_lines =~ "dismissing notification id=42"
-  end
+      :ok
+    end
 
-  test "when notification from bot" do
-    Req.Test.expect(NotifHandler, fn conn ->
-      assert conn.method == "POST"
-      assert conn.request_path == "/api/v1/notifications/42/dismiss"
-      Req.Test.json(conn, %{})
-    end)
+    test "when unknown notification type" do
+      req = Req.new(plug: {Req.Test, NotifHandler})
+      map = %{"id" => 42, "type" => :test}
 
-    req = Req.new(plug: {Req.Test, NotifHandler})
-    map = %{"id" => 42, "account" => %{"bot" => true, "acct" => "test"}}
+      log_lines =
+        capture_log(fn ->
+          NotificationHandler.process_mention(map, req)
+        end)
 
-    log_lines =
-      capture_log(fn ->
-        NotificationHandler.process_mention(map, req)
-      end)
+      assert log_lines =~ "notification type=test is unknown"
+      assert log_lines =~ "dismissing notification id=42"
+    end
 
-    assert log_lines =~ "got a message from bot! @test"
-    assert log_lines =~ "dismissing notification id=42"
-  end
+    test "when notification from bot" do
+      req = Req.new(plug: {Req.Test, NotifHandler})
+      map = %{"id" => 42, "account" => %{"bot" => true, "acct" => "test"}}
 
-  test "when no links" do
-    Req.Test.expect(NotifHandler, fn conn ->
-      assert conn.method == "POST"
-      assert conn.request_path == "/api/v1/notifications/42/dismiss"
-      Req.Test.json(conn, %{})
-    end)
+      log_lines =
+        capture_log(fn ->
+          NotificationHandler.process_mention(map, req)
+        end)
 
-    req = Req.new(plug: {Req.Test, NotifHandler})
+      assert log_lines =~ "got a message from bot! @test"
+      assert log_lines =~ "dismissing notification id=42"
+    end
 
-    map = %{
-      "id" => 42,
-      "account" => %{"acct" => "test"},
-      "type" => "mention",
-      "status" => %{
-        "id" => 4242,
-        "content" => """
-          <a href="https://notx.com/path1/f">Link 1</a>
-          <a href="https://nottwitter.com/path1/f">Link 1</a>
+    test "when no links" do
+      req = Req.new(plug: {Req.Test, NotifHandler})
 
-          https://nitter.com lorem ipsum sit dolor
-        """,
-        "visibility" => "public"
+      map = %{
+        "id" => 42,
+        "account" => %{"acct" => "test"},
+        "type" => "mention",
+        "status" => %{
+          "id" => 4242,
+          "content" => """
+            <a href="https://notx.com/path1/f">Link 1</a>
+            <a href="https://nottwitter.com/path1/f">Link 1</a>
+
+            https://nitter.com lorem ipsum sit dolor
+          """,
+          "visibility" => "public"
+        }
       }
-    }
 
-    log_lines =
-      capture_log(fn ->
-        NotificationHandler.process_mention(map, req)
-      end)
+      log_lines =
+        capture_log(fn ->
+          NotificationHandler.process_mention(map, req)
+        end)
 
-    assert log_lines =~ "no links in 4242"
-    assert log_lines =~ "dismissing notification id=42"
+      assert log_lines =~ "no links in 4242"
+      assert log_lines =~ "dismissing notification id=42"
+    end
+
+    test "when no edited message" do
+      req = Req.new(plug: {Req.Test, NotifHandler})
+
+      map = %{
+        "id" => 42,
+        "type" => "mention",
+        "status" => %{
+          "edited_at" => "today"
+        }
+      }
+
+      log_lines =
+        capture_log(fn ->
+          NotificationHandler.process_mention(map, req)
+        end)
+
+      assert log_lines =~ "discarded edit of previous status"
+      assert log_lines =~ "dismissing notification id=42"
+    end
   end
 
   @tag capture_log: true

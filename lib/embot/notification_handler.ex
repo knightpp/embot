@@ -23,6 +23,12 @@ defmodule Embot.NotificationHandler do
     :ok
   end
 
+  defp parse_link_and_send_reply!(_req, %{"account" => %{"edited_at" => edited}})
+       when not is_nil(edited) do
+    Logger.info("discared notification for edited message")
+    :ok
+  end
+
   defp parse_link_and_send_reply!(
          req,
          %{
@@ -31,8 +37,7 @@ defmodule Embot.NotificationHandler do
            "status" => %{
              "id" => status_id,
              "content" => content,
-             "visibility" => visibility,
-             "edited_at" => nil
+             "visibility" => visibility
            }
          }
        ) do
