@@ -9,7 +9,8 @@ defmodule Embot.Streamer do
   def init(req) do
     children = [
       {Embot.Streamer.Producer, req},
-      {Embot.Streamer.ConsumerSupervisor, req}
+      {Embot.Streamer.ConsumerSupervisor, req},
+      {Embot.Backlog, req}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
