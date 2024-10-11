@@ -130,7 +130,7 @@ defmodule Embot.NotificationHandler do
     if type != :ok do
       Logger.warning("notification type=#{notification["type"]} is unknown")
     else
-      Logger.info("not handling notification=#{notification["id"]} type=#{type}")
+      Logger.info("not handling notification=#{notification["id"]} type=#{notification["type"]}")
     end
 
     :ok
