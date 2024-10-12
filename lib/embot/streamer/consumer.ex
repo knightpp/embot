@@ -27,11 +27,19 @@ defmodule Embot.Streamer.Consumer do
     {:noreply, [], req}
   end
 
+  # This replaces default log like this:
+  # [notice] GenStage consumer #PID<0.1223.0> is stopping after receiving cancel from producer #PID<0.1214.0> with reason: ...
   @impl GenStage
-  def handle_cancel({:down, {:shutdown, :timeout}}, _from, state) do
-    # This replaces default log like this:
-    # [notice] GenStage consumer #PID<0.1223.0> is stopping after receiving cancel from producer #PID<0.1214.0> with reason: ...
-    Logger.info("stopping consumer because reason=timeout")
+  def handle_cancel({:down, {:shutdown, reason}}, _from, state) do
+    case reason do
+      reason
+      when reason in [:transport_closed, :transport_done, :transport_timeout, :pool_done] ->
+        Logger.info("stopping consumer because reason=#{inspect(reason)}")
+
+      reason ->
+        Logger.warning("stopping consumer because reason=#{inspect(reason)}")
+    end
+
     {:noreply, [], state}
   end
 
