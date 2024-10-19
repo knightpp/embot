@@ -2,31 +2,44 @@ defmodule Embot.NotificationHandler do
   require Logger
   alias Embot.Mastodon
 
+  @spec process_mention(map(), Req.Request.t()) :: :ok | {:error, term()}
   def process_mention(event, req) do
-    Logger.info("received event #{event["id"]} at #{event["created_at"]}")
+    Logger.info("received event=#{event["id"]} event.ts=#{event["created_at"]}")
 
-    with :ok <- parse_link_and_send_reply!(req, event) do
-      notification_id = event |> Map.fetch!("id")
-      Logger.notice("dismissing notification id=#{notification_id}")
+    case parse_link_and_send_reply!(req, event) do
+      :ok -> dismiss_notification(event, req, :ok)
+      {:error, :bot = reason} -> dismiss_notification(event, req, reason)
+      {:error, :edit = reason} -> dismiss_notification(event, req, reason)
+      {:error, :no_links = reason} -> dismiss_notification(event, req, reason)
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
-      with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do
-        case status do
-          200 -> :ok
-          404 -> :ok
-        end
+  @spec dismiss_notification(map(), Req.Request.t(), atom()) :: :ok | {:error, term()}
+  defp dismiss_notification(event, req, reason) do
+    notification_id = Map.fetch!(event, "id")
+    Logger.notice("dismissing notification id=#{notification_id} reason=#{reason}")
+
+    with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do
+      case status do
+        200 -> :ok
+        404 -> :ok
+        status -> {:error, "got unexpected status: #{status} is neither 200 nor 404"}
       end
     end
   end
 
-  defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true, "acct" => acct}}) do
-    Logger.warning("got a message from bot! @#{acct}")
-    :ok
+  @spec parse_link_and_send_reply!(Req.Request.t(), map()) ::
+          :ok | {:error, :bot | :edit | :no_links | term()}
+  defp parse_link_and_send_reply!(req, notification)
+
+  defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true}}) do
+    {:error, :bot}
   end
 
-  defp parse_link_and_send_reply!(_req, %{"account" => %{"edited_at" => edited}})
-       when not is_nil(edited) do
-    Logger.info("discared notification for edited message")
-    :ok
+  defp parse_link_and_send_reply!(_req, %{"status" => %{"edited_at" => edited}})
+       when is_binary(edited) do
+    {:error, :edit}
   end
 
   defp parse_link_and_send_reply!(
@@ -50,8 +63,7 @@ defmodule Embot.NotificationHandler do
         Floki.attribute(content, "a[href^='https://twitter.com']", "href")
 
     if links == [] do
-      Logger.info("no links in #{status_id}")
-      :ok
+      {:error, :no_links}
     else
       visibility =
         case visibility do
@@ -106,14 +118,6 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp parse_link_and_send_reply!(_req, %{
-         "type" => "mention",
-         "status" => %{"edited_at" => _notnil}
-       }) do
-    Logger.notice("discarded edit of previous status")
-    :ok
-  end
-
   defp parse_link_and_send_reply!(_req, notification) do
     type =
       case notification["type"] do
@@ -133,9 +137,11 @@ defmodule Embot.NotificationHandler do
       end
 
     if type != :ok do
-      Logger.warning("notification type=#{notification["type"]} is unknown")
+      Logger.warning("unknown notification type=#{notification["type"]}")
     else
-      Logger.info("not handling notification=#{notification["id"]} type=#{notification["type"]}")
+      Logger.notice(
+        "not handling notification=#{notification["id"]} type=#{notification["type"]}"
+      )
     end
 
     :ok

@@ -29,8 +29,8 @@ defmodule Embot.NotificationHandlerTest do
           NotificationHandler.process_mention(map, req)
         end)
 
-      assert log_lines =~ "notification type=test is unknown"
-      assert log_lines =~ "dismissing notification id=42"
+      assert log_lines =~ "unknown notification type=test"
+      assert log_lines =~ "dismissing notification id=42 reason=ok"
     end
 
     test "when notification from bot" do
@@ -42,8 +42,7 @@ defmodule Embot.NotificationHandlerTest do
           NotificationHandler.process_mention(map, req)
         end)
 
-      assert log_lines =~ "got a message from bot! @test"
-      assert log_lines =~ "dismissing notification id=42"
+      assert log_lines =~ "dismissing notification id=42 reason=bot"
     end
 
     test "when no links" do
@@ -70,8 +69,7 @@ defmodule Embot.NotificationHandlerTest do
           NotificationHandler.process_mention(map, req)
         end)
 
-      assert log_lines =~ "no links in 4242"
-      assert log_lines =~ "dismissing notification id=42"
+      assert log_lines =~ "dismissing notification id=42 reason=no_links"
     end
 
     test "when no edited message" do
@@ -90,8 +88,7 @@ defmodule Embot.NotificationHandlerTest do
           NotificationHandler.process_mention(map, req)
         end)
 
-      assert log_lines =~ "discarded edit of previous status"
-      assert log_lines =~ "dismissing notification id=42"
+      assert log_lines =~ "dismissing notification id=42 reason=edit"
     end
   end
 
