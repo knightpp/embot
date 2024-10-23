@@ -36,4 +36,14 @@ defmodule Embot.FxtwiTest do
       assert_raise(RuntimeError, ~r/^unknown/, execute)
     end
   end
+
+  test "strip redirect" do
+    want =
+      "https://video.twimg.com/ext_tw_video/1848892096964358144/pu/vid/avc1/718x708/wmPO1HX1IZRNfJYN.mp4?tag=12"
+
+    got =
+      "https://api.fxtwitter.com/2/go?url=https%3A%2F%2Fvideo.twimg.com%2Fext_tw_video%2F1848892096964358144%2Fpu%2Fvid%2Favc1%2F718x708%2FwmPO1HX1IZRNfJYN.mp4%3Ftag%3D12"
+
+    assert Fxtwi.strip_redirect!(got) == want
+  end
 end

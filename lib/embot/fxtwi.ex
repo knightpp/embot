@@ -42,8 +42,8 @@ defmodule Embot.Fxtwi do
     url = attribute!(document, "meta[property='og:url'][content]")
     description = attribute!(document, "meta[property='og:description'][content]")
     title = attribute!(document, "meta[property='og:title'][content]")
-    image = attribute(document, "meta[property='og:image'][content]")
-    video = attribute(document, "meta[property='og:video'][content]")
+    image = attribute(document, "meta[property='og:image'][content]") |> try_strip_redirect!()
+    video = attribute(document, "meta[property='og:video'][content]") |> try_strip_redirect!()
 
     video_mime =
       attribute(document, [
@@ -60,6 +60,19 @@ defmodule Embot.Fxtwi do
       video_mime: video_mime
     }
   end
+
+  @spec strip_redirect!(String.t()) :: String.t()
+  def strip_redirect!(url) when is_binary(url) do
+    uri = URI.new!(url)
+
+    case URI.decode_query(uri.query) do
+      %{"url" => redirect} -> redirect
+      _ -> url
+    end
+  end
+
+  defp try_strip_redirect!(nil), do: nil
+  defp try_strip_redirect!(url), do: strip_redirect!(url)
 
   defp attribute(document, attributes) when is_list(attributes) do
     Enum.find_value(attributes, fn attr ->
