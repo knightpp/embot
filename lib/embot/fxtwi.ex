@@ -65,9 +65,13 @@ defmodule Embot.Fxtwi do
   def strip_redirect!(url) when is_binary(url) do
     uri = URI.new!(url)
 
-    case URI.decode_query(uri.query) do
-      %{"url" => redirect} -> redirect
-      _ -> url
+    if uri.query == nil do
+      url
+    else
+      case URI.decode_query(uri.query) do
+        %{"url" => redirect} -> redirect
+        _ -> url
+      end
     end
   end
 
