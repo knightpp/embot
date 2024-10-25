@@ -1,0 +1,12 @@
+app = "app-spring-dawn-4138"
+
+primary_region = "otp"
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  strategy = "rolling"
+  max_unavailable = 1
