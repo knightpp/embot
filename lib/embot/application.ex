@@ -7,14 +7,9 @@ defmodule Embot.Application do
   def start(_type, _args) do
     children =
       [
-        Embot.BotsSupervisor,
-        {Task.Supervisor, name: Embot.HandlerTaskSupervisor}
-      ] ++
-        if Application.fetch_env!(:embot, :env) != :test do
-          [Embot.Loader]
-        else
-          []
-        end
+        {Task.Supervisor, name: Embot.HandlerTaskSupervisor},
+        Embot.Supervisor
+      ]
 
     opts = [strategy: :one_for_one, name: __MODULE__]
     Supervisor.start_link(children, opts)
