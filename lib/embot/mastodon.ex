@@ -41,7 +41,7 @@ defmodule Embot.Mastodon do
     end
   end
 
-  def stream_notifications!(req, into) do
+  def stream_notifications!(req, into, opts \\ []) do
     req
     |> Req.Request.put_headers([
       {"content-type", "text/event-stream; charset=utf-8"},
@@ -49,9 +49,14 @@ defmodule Embot.Mastodon do
       {"connection", "keep-alive"}
     ])
     |> Req.get!(
-      url: "/api/v1/streaming/user/notification",
-      into: into,
-      receive_timeout: :timer.seconds(90)
+      Keyword.merge(
+        [
+          url: "/api/v1/streaming/user/notification",
+          into: into,
+          receive_timeout: :timer.seconds(90)
+        ],
+        opts
+      )
     )
   end
 
