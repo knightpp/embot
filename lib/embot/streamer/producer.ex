@@ -15,14 +15,9 @@ defmodule Embot.Streamer.Producer do
 
   @impl GenStage
   def init(req) do
-    case KeepAlive.start_link(:ok) do
-      {:ok, pid} ->
-        %{status: 200} = Embot.Mastodon.stream_notifications!(req, :self)
-        {:producer, {pid, []}}
+    send(self(), {:late_init, req})
 
-      {:error, reason} ->
-        {:stop, reason}
-    end
+    {:producer, :uninitialized}
   end
 
   @impl GenStage
@@ -76,9 +71,44 @@ defmodule Embot.Streamer.Producer do
     {:stop, {:shutdown, :transport_timeout}, state}
   end
 
+  @impl true
+  def handle_info({:late_init, req}, _state) do
+    {:ok, pid} = KeepAlive.start_link(:ok)
+    # this will retry any error up to 100 times using default exponential backoff
+    %{status: 200} =
+      Embot.Mastodon.stream_notifications!(req, :self,
+        retry: fn _, resp_or_exception -> transient?(resp_or_exception) end,
+        max_retries: 100
+      )
+
+    {:noreply, [], {pid, []}}
+  end
+
   @impl GenStage
   def handle_call({:notify, payload}, _from, state) do
     events = if is_list(payload), do: payload, else: [payload]
     {:reply, :ok, events, state}
+  end
+
+  defp transient?(%Req.Response{status: status})
+       when status in [408, 429, 500, 502, 503, 504, 530] do
+    true
+  end
+
+  defp transient?(%Req.Response{}) do
+    false
+  end
+
+  defp transient?(%Req.TransportError{reason: reason})
+       when reason in [:timeout, :econnrefused, :closed] do
+    true
+  end
+
+  defp transient?(%Req.HTTPError{protocol: :http2, reason: :unprocessed}) do
+    true
+  end
+
+  defp transient?(%{__exception__: true}) do
+    false
   end
 end
