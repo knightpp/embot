@@ -9,6 +9,7 @@ COPY mix.exs .
 COPY mix.lock . 
 
 RUN mix deps.get --only prod
+RUN mix deps.compile
 
 COPY config/ config/ 
 COPY lib/ lib/
