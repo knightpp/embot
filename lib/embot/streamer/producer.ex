@@ -74,14 +74,25 @@ defmodule Embot.Streamer.Producer do
   @impl true
   def handle_info({:late_init, req}, _state) do
     {:ok, pid} = KeepAlive.start_link(:ok)
-    # this will retry any error up to 100 times using default exponential backoff
+
     %{status: 200} =
       Embot.Mastodon.stream_notifications!(req, :self,
-        retry: fn _, resp_or_exception -> transient?(resp_or_exception) end,
-        max_retries: 100
+        max_retries: 64,
+        retry: &retry/2,
+        retry_delay: &retry_delay/1
       )
 
     {:noreply, [], {pid, []}}
+  end
+
+  defp retry(_, resp_or_exception), do: transient?(resp_or_exception)
+
+  defp retry_delay(n) do
+    if n <= 6 do
+      2 ** n * 1000
+    else
+      :timer.seconds(60)
+    end
   end
 
   @impl GenStage
