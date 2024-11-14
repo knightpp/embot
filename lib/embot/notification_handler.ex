@@ -11,7 +11,7 @@ defmodule Embot.NotificationHandler do
       {:error, :bot = reason} -> dismiss_notification(event, req, reason)
       {:error, :edit = reason} -> dismiss_notification(event, req, reason)
       {:error, :no_links = reason} -> dismiss_notification(event, req, reason)
-      {:error, reason} -> {:error, reason}
+      {:error, reason} -> dismiss_notification(event, req, inspect(reason))
     end
   end
 
