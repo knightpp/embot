@@ -47,8 +47,9 @@ defmodule Embot.Fxtwi do
   @spec parse(binary()) :: {:ok, Embot.Fxtwi.t()} | {:error, term()}
   def parse(body) do
     with {:ok, document} <- body |> Floki.parse_document(),
-         {:ok, url} = attribute(document, "meta[property='og:url'][content]"),
          {:ok, description} = attribute(document, "meta[property='og:description'][content]"),
+         :ok <- assert_correct_description(description),
+         {:ok, url} = attribute(document, "meta[property='og:url'][content]"),
          {:ok, title} = attribute(document, "meta[property='og:title'][content]") do
       image =
         attributeOrNil(document, "meta[property='og:image'][content]") |> try_strip_redirect!()
@@ -71,6 +72,14 @@ defmodule Embot.Fxtwi do
          image: image,
          video_mime: video_mime
        }}
+    end
+  end
+
+  defp assert_correct_description(description) do
+    case description do
+      "Sorry, that post doesn't exist :(" -> {:error, {:post_not_found, description}}
+      "Sorry, that user doesn't exist :(" -> {:error, {:user_not_found, description}}
+      _ -> :ok
     end
   end
 

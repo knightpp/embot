@@ -5,14 +5,36 @@ defmodule Embot.FxtwiTest do
   @body File.read!("./test/data/gif.html")
 
   test "parse gif" do
-    assert Fxtwi.parse!(@body) == %{
-             description: "そろそろ扇風機も買い換えたい\nおはよう🌞ございます",
-             image: "https://pbs.twimg.com/tweet_video_thumb/GU-mr7Na4AQovSJ.jpg",
-             title: "サカイタカヒロ (@sakai_tak)",
-             url: "https://twitter.com/sakai_tak/status/1823859660111392964",
-             video: "https://gif.fxtwitter.com/tweet_video/GU-mr7Na4AQovSJ.mp4",
-             video_mime: "video/mp4"
-           }
+    want = %{
+      description: "そろそろ扇風機も買い換えたい\nおはよう🌞ございます",
+      image: "https://pbs.twimg.com/tweet_video_thumb/GU-mr7Na4AQovSJ.jpg",
+      title: "サカイタカヒロ (@sakai_tak)",
+      url: "https://twitter.com/sakai_tak/status/1823859660111392964",
+      video: "https://gif.fxtwitter.com/tweet_video/GU-mr7Na4AQovSJ.mp4",
+      video_mime: "video/mp4"
+    }
+
+    assert {:ok, ^want} = Fxtwi.parse(@body)
+  end
+
+  test "parse post that does not exist" do
+    assert {:error, {:post_not_found, "Sorry, that post doesn't exist :("}} = Fxtwi.parse(~s[
+      <!DOCTYPE html><html><head>
+      <meta property="og:title" content="FxTwitter / FixupX"/>
+      <meta property="og:description" content="Sorry, that post doesn't exist :("/>
+      </head><body>{body}</body>
+      </html>
+    ])
+  end
+
+  test "parse post where user does not exist" do
+    assert {:error, {:user_not_found, "Sorry, that user doesn't exist :("}} = Fxtwi.parse(~s[
+      <!DOCTYPE html><html><head>
+      <meta property="og:title" content="FxTwitter / FixupX"/>
+      <meta property="og:description" content="Sorry, that user doesn't exist :("/>
+      </head><body>{body}</body>
+      </html>
+    ])
   end
 
   describe "patch_url!" do
