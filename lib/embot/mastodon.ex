@@ -123,6 +123,23 @@ defmodule Embot.Mastodon do
     %{status: 200, body: body} = Req.get!(req, url: "/api/v1/notifications", params: query_params)
     body
   end
+
+  defp expect_status(resp, want_status) do
+    %{status: status, headers: headers, body: body} = resp
+
+    equals =
+      if is_list(want_status) do
+        status in want_status
+      else
+        status == want_status
+      end
+
+    if equals do
+      :ok
+    else
+      {:error, {"wanted #{want_status} but got #{status}", headers, body}}
+    end
+  end
 end
 
 defmodule Embot.Mastodon.Error do
