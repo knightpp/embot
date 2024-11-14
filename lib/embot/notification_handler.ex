@@ -82,33 +82,37 @@ defmodule Embot.NotificationHandler do
           Embot.HandlerTaskSupervisor,
           links_stream,
           fn link ->
-            twi = Embot.Fxtwi.get!(req, link)
+            with {:ok, twi} <- Embot.Fxtwi.get(req, link) do
+              media_id = upload_media!(req, twi)
+              wait_media_processing!(req, media_id)
 
-            media_id = upload_media!(req, twi)
-            wait_media_processing!(req, media_id)
+              status =
+                "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
+                |> limit_string(500)
 
-            status =
-              "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
-              |> limit_string(500)
-
-            Mastodon.post_status!(
-              req,
-              Keyword.merge(
-                [
-                  status: status,
-                  in_reply_to_id: status_id,
-                  visibility: visibility,
-                  "media_ids[]": media_id
-                ],
-                args_to_request(args)
+              Mastodon.post_status!(
+                req,
+                Keyword.merge(
+                  [
+                    status: status,
+                    in_reply_to_id: status_id,
+                    visibility: visibility,
+                    "media_ids[]": media_id
+                  ],
+                  args_to_request(args)
+                )
               )
-            )
+
+              {:ok, :end}
+            end
           end,
           ordered: false,
           timeout: :timer.minutes(2)
         )
-        |> Stream.filter(&match?({:exit, _}, &1))
-        |> Stream.map(fn {:exit, reason} -> reason end)
+        |> Stream.filter(fn
+          {:ok, _} -> false
+          _ -> true
+        end)
         |> Enum.to_list()
 
       case results do

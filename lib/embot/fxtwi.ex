@@ -25,40 +25,53 @@ defmodule Embot.Fxtwi do
     end
   end
 
-  @spec get!(Req.Request.t(), String.t()) :: Embot.Fxtwi.t()
-  def get!(req, url) do
-    url = patch_url!(url)
-
-    %{status: 200, body: body} =
-      Req.get!(req, url: url, redirect: false, user_agent: "curl", auth: "")
-
-    parse!(body)
+  @spec get(Req.Request.t(), String.t()) :: {:ok, Embot.Fxtwi.t()} | {:error, term()}
+  def get(req, url) do
+    with {:ok, url} <- patch_url(url),
+         {:ok, body} <- do_get(req, url) do
+      parse(body)
+    end
   end
 
-  @spec parse!(binary()) :: Embot.Fxtwi.t()
-  def parse!(body) do
-    document = body |> Floki.parse_document!()
+  defp do_get(req, url) do
+    %{status: status, body: body} =
+      Req.get!(req, url: url, redirect: false, user_agent: "curl", auth: "")
 
-    url = attribute!(document, "meta[property='og:url'][content]")
-    description = attribute!(document, "meta[property='og:description'][content]")
-    title = attribute!(document, "meta[property='og:title'][content]")
-    image = attribute(document, "meta[property='og:image'][content]") |> try_strip_redirect!()
-    video = attribute(document, "meta[property='og:video'][content]") |> try_strip_redirect!()
+    if status == 200 do
+      {:ok, body}
+    else
+      {:error, {status, body}}
+    end
+  end
 
-    video_mime =
-      attribute(document, [
-        "meta[property='og:video:type'][content]",
-        "meta[property='twitter:player:stream:content_type'][content]"
-      ])
+  @spec parse(binary()) :: {:ok, Embot.Fxtwi.t()} | {:error, term()}
+  def parse(body) do
+    with {:ok, document} <- body |> Floki.parse_document(),
+         {:ok, url} = attribute(document, "meta[property='og:url'][content]"),
+         {:ok, description} = attribute(document, "meta[property='og:description'][content]"),
+         {:ok, title} = attribute(document, "meta[property='og:title'][content]") do
+      image =
+        attributeOrNil(document, "meta[property='og:image'][content]") |> try_strip_redirect!()
 
-    %{
-      video: video,
-      description: description,
-      url: url,
-      title: title,
-      image: image,
-      video_mime: video_mime
-    }
+      video =
+        attributeOrNil(document, "meta[property='og:video'][content]") |> try_strip_redirect!()
+
+      video_mime =
+        attributeOrNil(document, [
+          "meta[property='og:video:type'][content]",
+          "meta[property='twitter:player:stream:content_type'][content]"
+        ])
+
+      {:ok,
+       %{
+         video: video,
+         description: description,
+         url: url,
+         title: title,
+         image: image,
+         video_mime: video_mime
+       }}
+    end
   end
 
   @spec strip_redirect!(String.t()) :: String.t()
@@ -78,18 +91,24 @@ defmodule Embot.Fxtwi do
   defp try_strip_redirect!(nil), do: nil
   defp try_strip_redirect!(url), do: strip_redirect!(url)
 
-  defp attribute(document, attributes) when is_list(attributes) do
+  defp attributeOrNil(document, attributes) when is_list(attributes) do
     Enum.find_value(attributes, fn attr ->
       document |> Floki.attribute(attr, "content") |> first()
     end)
   end
 
-  defp attribute(document, attr) do
+  defp attributeOrNil(document, attr) do
     document |> Floki.attribute(attr, "content") |> first()
   end
 
-  defp attribute!(document, attributes) do
-    attribute(document, attributes) || raise "unexpected nil while getting #{inspect(attributes)}"
+  defp attribute(document, attributes) do
+    case attributeOrNil(document, attributes) do
+      nil ->
+        {:error, {"unexpected nil while getting #{inspect(attributes)}", document}}
+
+      v ->
+        {:ok, v}
+    end
   end
 
   defp first([]), do: nil
