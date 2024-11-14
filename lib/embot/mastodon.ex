@@ -10,14 +10,17 @@ defmodule Embot.Mastodon do
   end
 
   def upload_media(req, data) do
-    with {:ok, %{status: status, body: body}} =
-           Req.post(req, url: "/api/v2/media", form_multipart: data) do
+    with {:ok, %{status: status, body: body, headers: headers}} =
+           Req.post(req, url: "/api/v2/media", form_multipart: data, retry: :transient) do
       case status do
         200 ->
           {:ok, body}
 
         202 ->
           {:ok, body}
+
+        429 ->
+          {:error, {"rate limited", headers}}
 
         status ->
           {
@@ -63,7 +66,8 @@ defmodule Embot.Mastodon do
   def notification_dismiss(req, notification_id) do
     Req.post(req,
       url: "/api/v1/notifications/:id/dismiss",
-      path_params: [id: notification_id]
+      path_params: [id: notification_id],
+      retry: :transient
     )
   end
 
