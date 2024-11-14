@@ -101,7 +101,7 @@ defmodule Embot.NotificationHandlerTest do
       end
     end)
 
-    # Req.Test.expect(NotifHandler, &Req.Test.html(&1, ""))
+    Req.Test.expect(NotifHandler, &Req.Test.html(&1, ""))
     req = Req.new(plug: {Req.Test, NotifHandler})
 
     map = %{
@@ -120,10 +120,11 @@ defmodule Embot.NotificationHandlerTest do
 
     assert {:error, errors} = NotificationHandler.process_mention(map, req)
 
-    for {error, _} <- errors do
-      assert %RuntimeError{
-               message: "unexpected nil while getting \"meta[property='og:url'][content]\""
-             } == error
+    for {:exit, [error]} <- errors do
+      assert {:exit,
+              %RuntimeError{
+                message: "unexpected nil while getting \"meta[property='og:url'][content]\""
+              }} = error
     end
   end
 

@@ -7,11 +7,20 @@ defmodule Embot.NotificationHandler do
     Logger.info("received event=#{event["id"]} event.ts=#{event["created_at"]}")
 
     case parse_link_and_send_reply!(req, event) do
-      :ok -> dismiss_notification(event, req, :ok)
-      {:error, :bot = reason} -> dismiss_notification(event, req, reason)
-      {:error, :edit = reason} -> dismiss_notification(event, req, reason)
-      {:error, :no_links = reason} -> dismiss_notification(event, req, reason)
-      {:error, reason} -> dismiss_notification(event, req, inspect(reason))
+      :ok ->
+        dismiss_notification(event, req, :ok)
+
+      {:error, :bot = reason} ->
+        dismiss_notification(event, req, reason)
+
+      {:error, :edit = reason} ->
+        dismiss_notification(event, req, reason)
+
+      {:error, :no_links = reason} ->
+        dismiss_notification(event, req, reason)
+
+      {:error, reason} ->
+        with :ok <- dismiss_notification(event, req, inspect(reason)), do: {:error, reason}
     end
   end
 
