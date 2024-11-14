@@ -16,15 +16,23 @@ defmodule Embot.Streamer.Consumer do
     Enum.each(events, fn event ->
       case event do
         {:mention, mention} ->
-          :ok = Embot.NotificationHandler.process_mention(mention, req)
+          Embot.NotificationHandler.process_mention(mention, req) |> maybe_log_error()
 
         chunk ->
           parse_sse(chunk)
           |> Enum.map(&Embot.NotificationHandler.process_mention(&1, req))
+          |> Enum.each(&maybe_log_error/1)
       end
     end)
 
     {:noreply, [], req}
+  end
+
+  defp maybe_log_error(result) do
+    case result do
+      :ok -> :ok
+      {:error, reason} -> Logger.error(reason)
+    end
   end
 
   # This replaces default log like this:
