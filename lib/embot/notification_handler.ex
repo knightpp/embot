@@ -103,16 +103,13 @@ defmodule Embot.NotificationHandler do
                 )
               )
 
-              {:ok, :end}
+              :ok
             end
           end,
           ordered: false,
           timeout: :timer.minutes(2)
         )
-        |> Stream.filter(fn
-          {:ok, _} -> false
-          _ -> true
-        end)
+        |> Stream.filter(fn x -> not match?({:ok, _}, x) end)
         |> Enum.to_list()
 
       case results do
