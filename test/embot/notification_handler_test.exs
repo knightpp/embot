@@ -130,7 +130,7 @@ defmodule Embot.NotificationHandlerTest do
 
   @tag capture_log: true
   test "it works" do
-    Req.Test.expect(NotifHandler, 9, fn conn ->
+    Req.Test.expect(NotifHandler, 11, fn conn ->
       case Plug.Conn.request_url(conn) do
         "https://fxtwitter.com/b" -> Req.Test.html(conn, @html)
         "https://fixupx.com/a" -> Req.Test.html(conn, @html)
@@ -138,6 +138,8 @@ defmodule Embot.NotificationHandlerTest do
         "http://www.example.com/api/v1/media/1" -> Req.Test.json(conn, %{})
         "http://www.example.com/api/v1/statuses" -> Req.Test.json(conn, %{})
         "http://www.example.com/api/v1/notifications/42/dismiss" -> Req.Test.json(conn, %{})
+        "https://127.0.0.1/video.mp4" -> Req.Test.text(conn, "1")
+        "https://127.0.0.1/image.png" -> Req.Test.text(conn, "2")
         url -> flunk("Unexpected url #{url}")
       end
     end)

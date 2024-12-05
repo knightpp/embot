@@ -183,7 +183,7 @@ defmodule Embot.NotificationHandler do
 
   defp upload_media!(req, %{video: video, video_mime: video_mime}) do
     %{status: 200, body: video_binary, headers: video_headers} =
-      Req.get!(url: video, redirect: false)
+      Req.get!(req, url: video, redirect: false, auth: "")
 
     content_type = video_mime || getContentType(video_headers, "video/mp4")
     file = {video_binary, content_type: content_type, filename: video}
