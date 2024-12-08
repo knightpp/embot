@@ -67,9 +67,7 @@ defmodule Embot.NotificationHandler do
 
     args = Embot.Command.parse(Floki.text(content))
 
-    links =
-      Floki.attribute(content, "a[href^='https://x.com']", "href") ++
-        Floki.attribute(content, "a[href^='https://twitter.com']", "href")
+    links = parse_links(content)
 
     if links == [] do
       {:error, :no_links}
@@ -156,6 +154,33 @@ defmodule Embot.NotificationHandler do
 
     :ok
   end
+
+  defp parse_links(content) do
+    links = Floki.attribute(content, "a", "href")
+    {twitter_links, other_links} = Enum.split_with(links, &is_twitter_link?/1)
+
+    other_links
+    |> Stream.map(&guess_nitter/1)
+    |> Stream.filter(&(elem(&1, 0) == :ok))
+    |> Stream.map(&elem(&1, 1))
+    |> Enum.concat(twitter_links)
+  end
+
+  defp is_twitter_link?("https://twitter.com" <> _), do: true
+  defp is_twitter_link?("https://x.com" <> _), do: true
+  defp is_twitter_link?(_), do: false
+
+  defp guess_nitter("https://" <> _ = link) do
+    uri = URI.parse(link)
+
+    if Regex.match?(~r"\/[^\/]+\/status\/\d+", uri.path) do
+      {:ok, %{uri | host: "twitter.com"} |> URI.to_string()}
+    else
+      {:error, {:unexpected_path, uri.path}}
+    end
+  end
+
+  defp guess_nitter(link), do: {:error, {:unexpected_scheme, link}}
 
   defp wait_media_processing!(_req, nil), do: :no_media
 
