@@ -3,6 +3,8 @@ FROM elixir:1.18-alpine AS builder
 RUN apk --no-cache add ca-certificates
 
 ENV MIX_ENV="prod"
+ENV ENABLE_FS_VIDEO="1"
+
 WORKDIR /src
 
 COPY mix.exs . 
