@@ -10,3 +10,8 @@ kill_timeout = 30
 [deploy]
   strategy = "rolling"
   max_unavailable = 1
+
+[mounts]
+  source = "vol_rny8k3889jj87214"
+  destination = "/tmp"
+
