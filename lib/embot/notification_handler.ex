@@ -206,16 +206,36 @@ defmodule Embot.NotificationHandler do
     id
   end
 
-  defp upload_media!(req, %{video: video, video_mime: video_mime}) do
-    %{status: 200, body: video_binary, headers: video_headers} =
-      Req.get!(req, url: video, redirect: false, auth: "")
+  # there's https://github.com/wojtekmach/req/issues/268 but I need multipart send :(
+  if Application.compile_env!(:embot, :fs_video) do
+    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
+      tmp_file_path = "/tmp/video/#{:rand.uniform()}"
+      file = File.stream!(tmp_file_path, 1024)
 
-    content_type = video_mime || getContentType(video_headers, "video/mp4")
-    file = {video_binary, content_type: content_type, filename: video}
+      %{status: 200, headers: video_headers} =
+        Req.get!(req, url: video, redirect: false, auth: "", into: file)
 
-    %{"id" => id} = Mastodon.upload_media!(req, file: file)
+      content_type = video_mime || getContentType(video_headers, "video/mp4")
+      multipart = {file, content_type: content_type, filename: video}
 
-    id
+      %{"id" => id} = Mastodon.upload_media!(req, file: multipart)
+
+      File.rm!(tmp_file_path)
+
+      id
+    end
+  else
+    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
+      %{status: 200, body: video_binary, headers: video_headers} =
+        Req.get!(req, url: video, redirect: false, auth: "", into: :self)
+
+      content_type = video_mime || getContentType(video_headers, "video/mp4")
+      file = {video_binary, content_type: content_type, filename: video}
+
+      %{"id" => id} = Mastodon.upload_media!(req, file: file)
+
+      id
+    end
   end
 
   defp getContentType(headers, default) do

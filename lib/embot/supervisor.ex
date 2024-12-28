@@ -11,6 +11,7 @@ defmodule Embot.Supervisor do
       if Application.fetch_env!(:embot, :env) != :test do
         [
           Embot.BotsSupervisor,
+          Embot.VideoCleaner,
           Embot.Loader
         ]
       else
