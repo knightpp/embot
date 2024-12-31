@@ -42,10 +42,10 @@ defmodule Embot.Streamer.Consumer do
     case reason do
       reason
       when reason in [:transport_closed, :transport_done, :transport_timeout, :pool_done] ->
-        Logger.info("stopping consumer because reason=#{inspect(reason)}")
+        Logger.info("stopping consumer", reason: reason)
 
       reason ->
-        Logger.warning("stopping consumer because reason=#{inspect(reason)}")
+        Logger.warning("stopping consumer", reason: reason)
     end
 
     {:noreply, [], state}
@@ -58,7 +58,7 @@ defmodule Embot.Streamer.Consumer do
         key == :data
 
       {:error, error} ->
-        Logger.error("could not parse sse line", error: inspect(error))
+        Logger.error("could not parse sse line", error: error)
         false
     end)
     |> Stream.map(fn {:ok, {_, data}} -> data end)

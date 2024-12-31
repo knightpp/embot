@@ -1,12 +1,15 @@
 defmodule Embot.NotificationHandler do
   require Logger
   alias Embot.Mastodon
+  alias Embot.NotificationHandler.LinkContext
+
+  @status_char_limit Application.compile_env!(:embot, :status_char_limit)
 
   @spec process_mention(map(), Req.Request.t()) :: :ok | {:error, term()}
   def process_mention(event, req) do
-    Logger.info("received event=#{event["id"]} event.ts=#{event["created_at"]}")
+    Logger.info("received event", id: event["id"], ts: event["created_at"])
 
-    case parse_link_and_send_reply!(req, event) do
+    case parse_links_and_send_reply!(req, event) do
       :ok ->
         dismiss_notification(event, req, :ok)
 
@@ -27,7 +30,7 @@ defmodule Embot.NotificationHandler do
   @spec dismiss_notification(map(), Req.Request.t(), atom()) :: :ok | {:error, term()}
   defp dismiss_notification(event, req, reason) do
     notification_id = Map.fetch!(event, "id")
-    Logger.notice("dismissing notification id=#{notification_id} reason=#{reason}")
+    Logger.notice("dismissing notification", id: notification_id, reason: reason)
 
     with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do
       case status do
@@ -38,28 +41,25 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  @spec parse_link_and_send_reply!(Req.Request.t(), map()) ::
+  @spec parse_links_and_send_reply!(Req.Request.t(), map()) ::
           :ok | {:error, :bot | :edit | :no_links | term()}
-  defp parse_link_and_send_reply!(req, notification)
+  defp parse_links_and_send_reply!(req, notification)
 
-  defp parse_link_and_send_reply!(_req, %{"account" => %{"bot" => true}}) do
+  defp parse_links_and_send_reply!(_req, %{"account" => %{"bot" => true}}) do
     {:error, :bot}
   end
 
-  defp parse_link_and_send_reply!(_req, %{"status" => %{"edited_at" => edited}})
+  defp parse_links_and_send_reply!(_req, %{"status" => %{"edited_at" => edited}})
        when is_binary(edited) do
     {:error, :edit}
   end
 
-  defp parse_link_and_send_reply!(
+  defp parse_links_and_send_reply!(
          req,
-         %{
-           "account" => %{"acct" => acct},
+         notif = %{
            "type" => "mention",
            "status" => %{
-             "id" => status_id,
-             "content" => content,
-             "visibility" => visibility
+             "content" => content
            }
          }
        ) do
@@ -69,64 +69,10 @@ defmodule Embot.NotificationHandler do
 
     links = parse_links(content)
 
-    if links == [] do
-      {:error, :no_links}
-    else
-      visibility =
-        case visibility do
-          "direct" -> "direct"
-          _ -> "unlisted"
-        end
-
-      links_stream =
-        links
-        |> Enum.sort()
-        |> Stream.dedup()
-        |> Stream.take(10)
-
-      results =
-        Task.Supervisor.async_stream_nolink(
-          Embot.HandlerTaskSupervisor,
-          links_stream,
-          fn link ->
-            with {:ok, twi} <- Embot.Fxtwi.get(req, link) do
-              media_id = upload_media!(req, twi)
-              wait_media_processing!(req, media_id)
-
-              status =
-                "@#{acct}\nOriginally posted #{twi.url}\n\n#{twi.title}\n\n#{twi.description}"
-                |> limit_string(500)
-
-              Mastodon.post_status!(
-                req,
-                Keyword.merge(
-                  [
-                    status: status,
-                    in_reply_to_id: status_id,
-                    visibility: visibility,
-                    "media_ids[]": media_id
-                  ],
-                  args_to_request(args)
-                )
-              )
-
-              :ok
-            end
-          end,
-          ordered: false,
-          timeout: :timer.minutes(2)
-        )
-        |> Stream.filter(fn x -> not match?({:ok, _}, x) end)
-        |> Enum.to_list()
-
-      case results do
-        [] -> :ok
-        errors -> {:error, errors}
-      end
-    end
+    process_links(req, notif, links, args)
   end
 
-  defp parse_link_and_send_reply!(_req, notification) do
+  defp parse_links_and_send_reply!(_req, notification) do
     type =
       case notification["type"] do
         "status" -> :ok
@@ -145,14 +91,105 @@ defmodule Embot.NotificationHandler do
       end
 
     if type != :ok do
-      Logger.warning("unknown notification type=#{notification["type"]}")
+      Logger.warning("unknown notification", type: notification["type"])
     else
       Logger.notice(
-        "not handling notification=#{notification["id"]} type=#{notification["type"]}"
+        "not handling notification",
+        id: notification["id"],
+        type: notification["type"]
       )
     end
 
     :ok
+  end
+
+  defp process_links(req, notif, links, args)
+  defp process_links(_req, _notif, [], _args), do: {:error, :no_links}
+
+  defp process_links(
+         req,
+         %{
+           "account" => %{"acct" => acct},
+           "status" => %{
+             "id" => status_id,
+             "visibility" => visibility
+           }
+         },
+         links,
+         args
+       ) do
+    links_stream =
+      links
+      |> Enum.sort()
+      |> Stream.dedup()
+      |> Stream.take(100)
+
+    results =
+      Task.Supervisor.async_stream_nolink(
+        Embot.HandlerTaskSupervisor,
+        links_stream,
+        fn link ->
+          process_link(%LinkContext{
+            req: req,
+            acct: acct,
+            status_id: status_id,
+            visibility: visibility,
+            link: link,
+            args: args
+          })
+        end,
+        ordered: false,
+        timeout: :timer.minutes(2),
+        max_concurrency: 4
+      )
+      |> Stream.filter(fn x -> not match?({:ok, _}, x) end)
+      |> Enum.to_list()
+
+    case results do
+      [] -> :ok
+      errors -> {:error, errors}
+    end
+  end
+
+  defp process_link(%LinkContext{req: req} = context) do
+    Logger.info("processing...", link: context.link)
+
+    with {:ok, twi} <- Embot.Fxtwi.get(req, context.link) do
+      visibility =
+        case context.visibility do
+          "direct" -> "direct"
+          _ -> "unlisted"
+        end
+
+      media_id = upload_media!(req, twi)
+      wait_media_processing!(req, media_id)
+
+      status =
+        """
+        @#{context.acct}
+        Originally posted #{twi.url}
+
+        #{twi.title}
+
+        #{twi.description}
+        """
+        |> limit_string(@status_char_limit)
+
+      Mastodon.post_status!(
+        req,
+        Keyword.merge(
+          [
+            status: status,
+            in_reply_to_id: context.status_id,
+            visibility: visibility,
+            "media_ids[]": media_id
+          ],
+          args_to_request(context.args)
+        )
+      )
+
+      :ok
+    end
   end
 
   defp parse_links(content) do
@@ -215,7 +252,7 @@ defmodule Embot.NotificationHandler do
       %{status: 200, headers: video_headers} =
         Req.get!(req, url: video, redirect: false, auth: "", into: file)
 
-      content_type = video_mime || getContentType(video_headers, "video/mp4")
+      content_type = video_mime || firstOrNil(video_headers, "video/mp4")
       multipart = {file, content_type: content_type, filename: video}
 
       %{"id" => id} = Mastodon.upload_media!(req, file: multipart)
@@ -229,7 +266,7 @@ defmodule Embot.NotificationHandler do
       %{status: 200, body: video_binary, headers: video_headers} =
         Req.get!(req, url: video, redirect: false, auth: "", into: :self)
 
-      content_type = video_mime || getContentType(video_headers, "video/mp4")
+      content_type = video_mime || firstOrNil(video_headers, "video/mp4")
       file = {video_binary, content_type: content_type, filename: video}
 
       %{"id" => id} = Mastodon.upload_media!(req, file: file)
@@ -245,6 +282,29 @@ defmodule Embot.NotificationHandler do
     end
   end
 
+  defp infer_content_length(headers) do
+    case firstOrNil(headers, "content-length") do
+      nil ->
+        []
+
+      size_str ->
+        {size, ""} = size_str |> Integer.parse()
+        [content_length: size]
+    end
+  end
+
+  defp firstOrNil(nil, _name), do: nil
+
+  defp firstOrNil(headers_map, name) do
+    val = get_in(headers_map, [name])
+
+    if val == nil do
+      nil
+    else
+      val |> Enum.at(0, nil)
+    end
+  end
+
   defp limit_string(str, max) when max > 1 do
     if String.length(str) <= max do
       str
@@ -255,8 +315,13 @@ defmodule Embot.NotificationHandler do
 
   defp args_to_request(args) do
     Enum.reduce(args, [], fn
-      {:cw, nil}, acc -> Keyword.put(acc, :sensitive, "true")
-      {:cw, spoiler_text}, acc -> [{:sensitive, "true"}, {:spoiler_text, spoiler_text} | acc]
+      {:cw, nil}, acc ->
+        Keyword.put(acc, :sensitive, "true")
+
+      {:cw, spoiler_text}, acc ->
+        acc
+        |> Keyword.put(:sensitive, "true")
+        |> Keyword.put(:spoiler_text, spoiler_text)
     end)
   end
 end
