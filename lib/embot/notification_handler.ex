@@ -206,43 +206,24 @@ defmodule Embot.NotificationHandler do
     id
   end
 
-  # there's https://github.com/wojtekmach/req/issues/268 but I need multipart send :(
-  if Application.compile_env!(:embot, :fs_video) do
-    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
-      tmp_file_path = "/tmp/video/#{:rand.uniform()}"
-      file = File.stream!(tmp_file_path, 1024)
+  defp upload_media!(req, %{video: video, video_mime: video_mime}) do
+    %{status: 200, body: video_stream, headers: video_headers} =
+      Req.get!(req, url: video, redirect: false, auth: "", into: :self)
 
-      %{status: 200, headers: video_headers} =
-        Req.get!(req, url: video, redirect: false, auth: "", into: file)
+    content_type = video_mime || getFirstHeader(video_headers, "content-type") || "video/mp4"
 
-      content_type = video_mime || getContentType(video_headers, "video/mp4")
-      multipart = {file, content_type: content_type, filename: video}
+    {size, ""} = getFirstHeader(video_headers, "content-length") |> Integer.parse()
 
-      %{"id" => id} = Mastodon.upload_media!(req, file: multipart)
+    file =
+      {video_stream, content_type: content_type, filename: video, size: size}
 
-      File.rm!(tmp_file_path)
+    %{"id" => id} = Mastodon.upload_media!(req, file: file)
 
-      id
-    end
-  else
-    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
-      %{status: 200, body: video_binary, headers: video_headers} =
-        Req.get!(req, url: video, redirect: false, auth: "", into: :self)
-
-      content_type = video_mime || getContentType(video_headers, "video/mp4")
-      file = {video_binary, content_type: content_type, filename: video}
-
-      %{"id" => id} = Mastodon.upload_media!(req, file: file)
-
-      id
-    end
+    id
   end
 
-  defp getContentType(headers, default) do
-    case headers["content-type"] do
-      [ct | _] -> ct
-      _ -> default
-    end
+  defp getFirstHeader(headers, name) do
+    headers[name] |> Enum.at(0, nil)
   end
 
   defp limit_string(str, max) when max > 1 do

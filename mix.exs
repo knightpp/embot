@@ -30,7 +30,8 @@ defmodule Embot.MixProject do
 
   defp deps do
     [
-      {:req, "~> 0.5"},
+      {:req, "~> 0.5",
+       git: "https://github.com/knightpp/req.git", branch: "add-multipart-stream"},
       {:jason, "~> 1.4"},
       {:gen_stage, "~> 1.2"},
       {:floki, "~> 0.36"},
