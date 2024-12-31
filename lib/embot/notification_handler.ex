@@ -212,14 +212,26 @@ defmodule Embot.NotificationHandler do
 
     content_type = video_mime || getFirstHeader(video_headers, "content-type") || "video/mp4"
 
-    {size, ""} = getFirstHeader(video_headers, "content-length") |> Integer.parse()
+    file_options =
+      Keyword.merge(
+        [content_type: content_type, filename: video],
+        infer_content_length(video_headers)
+      )
 
-    file =
-      {video_stream, content_type: content_type, filename: video, size: size}
-
-    %{"id" => id} = Mastodon.upload_media!(req, file: file)
+    %{"id" => id} = Mastodon.upload_media!(req, file: {video_stream, file_options})
 
     id
+  end
+
+  defp infer_content_length(headers) do
+    case getFirstHeader(headers, "content-length") do
+      nil ->
+        []
+
+      size_str ->
+        {size, ""} = size_str |> Integer.parse()
+        [size: size]
+    end
   end
 
   defp getFirstHeader(headers, name) do
