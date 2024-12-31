@@ -238,7 +238,7 @@ defmodule Embot.NotificationHandler do
     %{
       status: 200,
       body: image_stream,
-      headers: %{"content-type" => [mime], "content-length" => size}
+      headers: %{"content-type" => [mime], "content-length" => [size]}
     } =
       Req.get!(url: url, redirect: false, into: :self)
 
@@ -253,20 +253,40 @@ defmodule Embot.NotificationHandler do
     %{status: 200, body: video_stream, headers: video_headers} =
       Req.get!(req, url: video, redirect: false, auth: "", into: :self)
 
-    content_type = video_mime || getFirstHeader(video_headers, "content-type") || "video/mp4"
+    content_type = video_mime || firstOrNil(video_headers, "content-type") || "video/mp4"
 
-    {size, ""} = getFirstHeader(video_headers, "content-length") |> Integer.parse()
+    file_options =
+      Keyword.merge(
+        [content_type: content_type, filename: video],
+        infer_content_length(video_headers)
+      )
 
-    file =
-      {video_stream, content_type: content_type, filename: video, size: size}
-
-    %{"id" => id} = Mastodon.upload_media!(req, file: file)
+    %{"id" => id} = Mastodon.upload_media!(req, file: {video_stream, file_options})
 
     id
   end
 
-  defp getFirstHeader(headers, name) do
-    headers[name] |> Enum.at(0, nil)
+  defp infer_content_length(headers) do
+    case firstOrNil(headers, "content-length") do
+      nil ->
+        []
+
+      size_str ->
+        {size, ""} = size_str |> Integer.parse()
+        [content_length: size]
+    end
+  end
+
+  defp firstOrNil(nil, _name), do: nil
+
+  defp firstOrNil(headers_map, name) do
+    val = get_in(headers_map, [name])
+
+    if val == nil do
+      nil
+    else
+      val |> Enum.at(0, nil)
+    end
   end
 
   defp infer_content_length(headers) do
