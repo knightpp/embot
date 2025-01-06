@@ -10,6 +10,8 @@ WORKDIR /src
 COPY mix.exs . 
 COPY mix.lock . 
 
+RUN apk --no-cache add git
+
 RUN mix deps.get --only prod
 RUN mix deps.compile
 
