@@ -11,7 +11,7 @@ kill_timeout = 30
   strategy = "rolling"
   max_unavailable = 1
 
-[mounts]
-  source = "vol_vl2z25k35p83nlpr"
-  destination = "/tmp"
+# [mounts]
+#   source = "vol_vl2z25k35p83nlpr"
+#   destination = "/tmp"
 
