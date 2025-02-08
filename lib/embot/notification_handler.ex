@@ -1,5 +1,6 @@
 defmodule Embot.NotificationHandler do
   require Logger
+
   alias Embot.Mastodon
   alias Embot.NotificationHandler.LinkContext
 
@@ -264,29 +265,6 @@ defmodule Embot.NotificationHandler do
     %{"id" => id} = Mastodon.upload_media!(req, file: {video_stream, file_options})
 
     id
-  end
-
-  defp infer_content_length(headers) do
-    case firstOrNil(headers, "content-length") do
-      nil ->
-        []
-
-      size_str ->
-        {size, ""} = size_str |> Integer.parse()
-        [content_length: size]
-    end
-  end
-
-  defp firstOrNil(nil, _name), do: nil
-
-  defp firstOrNil(headers_map, name) do
-    val = get_in(headers_map, [name])
-
-    if val == nil do
-      nil
-    else
-      val |> Enum.at(0, nil)
-    end
   end
 
   defp infer_content_length(headers) do
