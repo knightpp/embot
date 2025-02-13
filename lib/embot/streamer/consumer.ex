@@ -2,13 +2,13 @@ defmodule Embot.Streamer.Consumer do
   use GenStage
   require Logger
 
-  def start_link(mastodon) do
-    GenStage.start_link(__MODULE__, mastodon)
+  def start_link(mastodon, producer \\ Embot.Streamer.SSEProducer) do
+    GenStage.start_link(__MODULE__, {mastodon, producer})
   end
 
   @impl GenStage
-  def init(mastodon) do
-    {:consumer, mastodon, subscribe_to: [{Embot.Streamer.Producer, max_demand: 1}]}
+  def init({mastodon, producer}) do
+    {:consumer, mastodon, subscribe_to: [{producer, max_demand: 1}]}
   end
 
   @impl GenStage

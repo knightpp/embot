@@ -1,4 +1,4 @@
-defmodule Embot.Streamer.Producer do
+defmodule Embot.Streamer.SSEProducer do
   require Logger
   use GenStage
   alias Embot.KeepAlive

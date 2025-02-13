@@ -1,14 +1,14 @@
 defmodule Embot.Streamer do
   use Supervisor
 
-  def start_link(mastodon) do
-    Supervisor.start_link(__MODULE__, mastodon)
+  def start_link(mastodon, producer \\ Embot.Streamer.SSEProducer) do
+    Supervisor.start_link(__MODULE__, {mastodon, producer})
   end
 
   @impl Supervisor
-  def init(mastodon) do
+  def init({mastodon, producer}) do
     children = [
-      {Embot.Streamer.Producer, mastodon},
+      {producer, mastodon},
       {Embot.Streamer.ConsumerSupervisor, mastodon},
       {Embot.Backlog, mastodon}
     ]
