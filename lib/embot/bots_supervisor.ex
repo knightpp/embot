@@ -1,7 +1,7 @@
 defmodule Embot.BotsSupervisor do
   use DynamicSupervisor
 
-  @spec start_child(%Embot.Mastodon{}) :: DynamicSupervisor.on_start_child()
+  @spec start_child(Embot.Mastodon.t()) :: DynamicSupervisor.on_start_child()
   def start_child(mastodon) do
     DynamicSupervisor.start_child(__MODULE__, {Embot.Streamer, mastodon})
   end

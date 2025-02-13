@@ -1,7 +1,7 @@
 defmodule Embot.Mastodon do
   alias Embot.Mastodon
-  @enforce_keys [:http, :auth]
-  defstruct [:http, :auth]
+  @enforce_keys [:http, :auth, :url, :token]
+  defstruct [:http, :auth, :url, :token]
 
   @type t() :: %Mastodon{}
 
@@ -11,7 +11,9 @@ defmodule Embot.Mastodon do
 
     %Embot.Mastodon{
       http: req,
-      auth: Req.merge(req, base_url: url, auth: {:bearer, access_token})
+      auth: Req.merge(req, base_url: url, auth: {:bearer, access_token}),
+      url: url,
+      token: access_token
     }
   end
 
