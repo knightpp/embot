@@ -30,6 +30,7 @@ defmodule Embot.MixProject do
 
   defp deps do
     [
+      {:fresh, "~> 0.4"},
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:gen_stage, "~> 1.2"},
