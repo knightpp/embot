@@ -3,8 +3,8 @@ defmodule Embot.Streamer.Producer do
   use GenStage
   alias Embot.KeepAlive
 
-  def start_link(req) do
-    GenStage.start_link(__MODULE__, req, name: __MODULE__)
+  def start_link(mastodon) do
+    GenStage.start_link(__MODULE__, mastodon, name: __MODULE__)
   end
 
   @doc "Used to put events OOB, like when reading backlog."
@@ -14,8 +14,8 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl GenStage
-  def init(req) do
-    send(self(), {:late_init, req})
+  def init(mastodon) do
+    send(self(), {:late_init, mastodon})
 
     {:producer, :uninitialized}
   end
@@ -72,11 +72,11 @@ defmodule Embot.Streamer.Producer do
   end
 
   @impl true
-  def handle_info({:late_init, req}, _state) do
+  def handle_info({:late_init, mastodon}, _state) do
     {:ok, pid} = KeepAlive.start_link(:ok)
 
     %{status: 200} =
-      Embot.Mastodon.stream_notifications!(req, :self,
+      Embot.Mastodon.stream_notifications!(mastodon.auth, :self,
         max_retries: 64,
         retry: &retry/2,
         retry_delay: &retry_delay/1

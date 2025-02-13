@@ -8,8 +8,8 @@ defmodule Embot.Loader do
   def run() do
     access_token = Application.fetch_env!(:embot, :access_token)
     endpoint = Application.fetch_env!(:embot, :endpoint)
-    req = Embot.Mastodon.new(endpoint, access_token)
+    mastodon = Embot.Mastodon.new(endpoint, access_token)
 
-    {:ok, _pid} = Embot.BotsSupervisor.start_child(req)
+    {:ok, _pid} = Embot.BotsSupervisor.start_child(mastodon)
   end
 end

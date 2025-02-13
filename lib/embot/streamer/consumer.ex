@@ -2,30 +2,30 @@ defmodule Embot.Streamer.Consumer do
   use GenStage
   require Logger
 
-  def start_link(req) do
-    GenStage.start_link(__MODULE__, req)
+  def start_link(mastodon) do
+    GenStage.start_link(__MODULE__, mastodon)
   end
 
   @impl GenStage
-  def init(req) do
-    {:consumer, req, subscribe_to: [{Embot.Streamer.Producer, max_demand: 1}]}
+  def init(mastodon) do
+    {:consumer, mastodon, subscribe_to: [{Embot.Streamer.Producer, max_demand: 1}]}
   end
 
   @impl GenStage
-  def handle_events(events, _from, req) do
+  def handle_events(events, _from, mastodon) do
     Enum.each(events, fn event ->
       case event do
         {:mention, mention} ->
-          Embot.NotificationHandler.process_mention(mention, req) |> maybe_log_error()
+          Embot.NotificationHandler.process_mention(mention, mastodon.auth) |> maybe_log_error()
 
         chunk ->
           parse_sse(chunk)
-          |> Enum.map(&Embot.NotificationHandler.process_mention(&1, req))
+          |> Enum.map(&Embot.NotificationHandler.process_mention(&1, mastodon))
           |> Enum.each(&maybe_log_error/1)
       end
     end)
 
-    {:noreply, [], req}
+    {:noreply, [], mastodon}
   end
 
   defp maybe_log_error(result) do
@@ -69,24 +69,24 @@ defmodule Embot.Streamer.ConsumerSupervisor do
   # TODO: Use GenStage.Supervisor?
   use Supervisor
 
-  def start_link(req) do
-    Supervisor.start_link(__MODULE__, req)
+  def start_link(mastodon) do
+    Supervisor.start_link(__MODULE__, mastodon)
   end
 
   @impl Supervisor
-  def init(req) do
+  def init(mastodon) do
     children = [
-      consumer_spec(req, :consumer1),
-      consumer_spec(req, :consumer2),
-      consumer_spec(req, :consumer3),
-      consumer_spec(req, :consumer4),
-      consumer_spec(req, :consumer5)
+      consumer_spec(mastodon, :consumer1),
+      consumer_spec(mastodon, :consumer2),
+      consumer_spec(mastodon, :consumer3),
+      consumer_spec(mastodon, :consumer4),
+      consumer_spec(mastodon, :consumer5)
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
   end
 
-  defp consumer_spec(req, id) do
-    Supervisor.child_spec({Embot.Streamer.Consumer, req}, id: id)
+  defp consumer_spec(mastodon, id) do
+    Supervisor.child_spec({Embot.Streamer.Consumer, mastodon}, id: id)
   end
 end

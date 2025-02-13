@@ -1,16 +1,16 @@
 defmodule Embot.Streamer do
   use Supervisor
 
-  def start_link(req) do
-    Supervisor.start_link(__MODULE__, req)
+  def start_link(mastodon) do
+    Supervisor.start_link(__MODULE__, mastodon)
   end
 
   @impl Supervisor
-  def init(req) do
+  def init(mastodon) do
     children = [
-      {Embot.Streamer.Producer, req},
-      {Embot.Streamer.ConsumerSupervisor, req},
-      {Embot.Backlog, req}
+      {Embot.Streamer.Producer, mastodon},
+      {Embot.Streamer.ConsumerSupervisor, mastodon},
+      {Embot.Backlog, mastodon}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)

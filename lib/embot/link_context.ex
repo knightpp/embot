@@ -1,6 +1,6 @@
 defmodule Embot.NotificationHandler.LinkContext do
   defstruct [
-    :req,
+    :mastodon,
     :link,
     :status_id,
     :visibility,

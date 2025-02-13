@@ -1,7 +1,18 @@
 defmodule Embot.Mastodon do
+  alias Embot.Mastodon
+  @enforce_keys [:http, :auth]
+  defstruct [:http, :auth]
+
+  @type t() :: %Mastodon{}
+
+  @spec new(String.t(), String.t()) :: Mastodon.t()
   def new(url, access_token) do
-    Req.new(base_url: url, auth: {:bearer, access_token})
-    |> Req.Request.put_header("user-agent", "Embot")
+    req = Req.new() |> Req.Request.put_header("user-agent", "Embot")
+
+    %Embot.Mastodon{
+      http: req,
+      auth: Req.merge(req, base_url: url, auth: {:bearer, access_token})
+    }
   end
 
   def verify_credentials!(req) do

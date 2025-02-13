@@ -3,12 +3,12 @@ defmodule Embot.Backlog do
   require Logger
   alias Embot.Mastodon
 
-  def start_link(req) do
-    Task.start_link(__MODULE__, :run, [req])
+  def start_link(mastodon) do
+    Task.start_link(__MODULE__, :run, [mastodon])
   end
 
-  def run(req, sender \\ &Embot.Streamer.Producer.sync_notify/1) do
-    mentions = Mastodon.notifications!(req, types: :mention)
+  def run(mastodon, sender \\ &Embot.Streamer.Producer.sync_notify/1) do
+    mentions = Mastodon.notifications!(mastodon.auth, types: :mention)
     Logger.notice("found unread mentions", unread: length(mentions))
 
     mentions |> Enum.each(&sender.({:mention, &1}))

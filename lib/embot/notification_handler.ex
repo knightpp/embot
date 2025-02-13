@@ -5,34 +5,35 @@ defmodule Embot.NotificationHandler do
 
   @status_char_limit Application.compile_env!(:embot, :status_char_limit)
 
-  @spec process_mention(map(), Req.Request.t()) :: :ok | {:error, term()}
-  def process_mention(event, req) do
+  @spec process_mention(map(), Embot.Mastodon.t()) :: :ok | {:error, term()}
+  def process_mention(event, mastodon) do
     Logger.info("received event", id: event["id"], ts: event["created_at"])
 
-    case parse_links_and_send_reply!(req, event) do
+    case parse_links_and_send_reply!(mastodon, event) do
       :ok ->
-        dismiss_notification(event, req, :ok)
+        dismiss_notification(event, mastodon, :ok)
 
       {:error, :bot = reason} ->
-        dismiss_notification(event, req, reason)
+        dismiss_notification(event, mastodon, reason)
 
       {:error, :edit = reason} ->
-        dismiss_notification(event, req, reason)
+        dismiss_notification(event, mastodon, reason)
 
       {:error, :no_links = reason} ->
-        dismiss_notification(event, req, reason)
+        dismiss_notification(event, mastodon, reason)
 
       {:error, reason} ->
-        with :ok <- dismiss_notification(event, req, inspect(reason)), do: {:error, reason}
+        with :ok <- dismiss_notification(event, mastodon, inspect(reason)), do: {:error, reason}
     end
   end
 
-  @spec dismiss_notification(map(), Req.Request.t(), atom()) :: :ok | {:error, term()}
-  defp dismiss_notification(event, req, reason) do
+  @spec dismiss_notification(map(), Embot.Mastodon.t(), String.t() | atom()) ::
+          :ok | {:error, term()}
+  defp dismiss_notification(event, mastodon, reason) do
     notification_id = Map.fetch!(event, "id")
     Logger.notice("dismissing notification", id: notification_id, reason: reason)
 
-    with {:ok, %{status: status}} <- Mastodon.notification_dismiss(req, notification_id) do
+    with {:ok, %{status: status}} <- Mastodon.notification_dismiss(mastodon.auth, notification_id) do
       case status do
         200 -> :ok
         404 -> :ok
@@ -41,21 +42,21 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  @spec parse_links_and_send_reply!(Req.Request.t(), map()) ::
+  @spec parse_links_and_send_reply!(Embot.Mastodon.t(), map()) ::
           :ok | {:error, :bot | :edit | :no_links | term()}
-  defp parse_links_and_send_reply!(req, notification)
+  defp parse_links_and_send_reply!(mastodon, notification)
 
-  defp parse_links_and_send_reply!(_req, %{"account" => %{"bot" => true}}) do
+  defp parse_links_and_send_reply!(_mastodon, %{"account" => %{"bot" => true}}) do
     {:error, :bot}
   end
 
-  defp parse_links_and_send_reply!(_req, %{"status" => %{"edited_at" => edited}})
+  defp parse_links_and_send_reply!(_mastodon, %{"status" => %{"edited_at" => edited}})
        when is_binary(edited) do
     {:error, :edit}
   end
 
   defp parse_links_and_send_reply!(
-         req,
+         mastodon,
          notif = %{
            "type" => "mention",
            "status" => %{
@@ -69,10 +70,10 @@ defmodule Embot.NotificationHandler do
 
     links = parse_links(content)
 
-    process_links(req, notif, links, args)
+    process_links(mastodon, notif, links, args)
   end
 
-  defp parse_links_and_send_reply!(_req, notification) do
+  defp parse_links_and_send_reply!(_mastodon, notification) do
     type =
       case notification["type"] do
         "status" -> :ok
@@ -103,11 +104,11 @@ defmodule Embot.NotificationHandler do
     :ok
   end
 
-  defp process_links(req, notif, links, args)
-  defp process_links(_req, _notif, [], _args), do: {:error, :no_links}
+  defp process_links(mastodon, notif, links, args)
+  defp process_links(_mastodon, _notif, [], _args), do: {:error, :no_links}
 
   defp process_links(
-         req,
+         mastodon,
          %{
            "account" => %{"acct" => acct},
            "status" => %{
@@ -130,7 +131,7 @@ defmodule Embot.NotificationHandler do
         links_stream,
         fn link ->
           process_link(%LinkContext{
-            req: req,
+            mastodon: mastodon,
             acct: acct,
             status_id: status_id,
             visibility: visibility,
@@ -151,32 +152,30 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp process_link(%LinkContext{req: req} = context) do
+  defp process_link(%LinkContext{mastodon: mastodon} = context) do
     Logger.info("processing...", link: context.link)
 
-    with {:ok, twi} <- Embot.Fxtwi.get(req, context.link) do
+    with {:ok, twi} <- Embot.Fxtwi.get(mastodon.http, context.link) do
       visibility =
         case context.visibility do
           "direct" -> "direct"
           _ -> "unlisted"
         end
 
-      media_id = upload_media!(req, twi)
-      wait_media_processing!(req, media_id)
+      media_id = upload_media!(mastodon.auth, twi)
+      wait_media_processing!(mastodon.auth, media_id)
 
       status =
         """
         @#{context.acct}
         Originally posted #{twi.url}
 
-        #{twi.title}
-
-        #{twi.description}
+        #{twi.text}
         """
         |> limit_string(@status_char_limit)
 
       Mastodon.post_status!(
-        req,
+        mastodon.auth,
         Keyword.merge(
           [
             status: status,
@@ -252,7 +251,7 @@ defmodule Embot.NotificationHandler do
       %{status: 200, headers: video_headers} =
         Req.get!(req, url: video, redirect: false, auth: "", into: file)
 
-      content_type = video_mime || firstOrNil(video_headers, "video/mp4")
+      content_type = video_mime || first_or_nil(video_headers, "video/mp4")
       multipart = {file, content_type: content_type, filename: video}
 
       %{"id" => id} = Mastodon.upload_media!(req, file: multipart)
@@ -264,9 +263,9 @@ defmodule Embot.NotificationHandler do
   else
     defp upload_media!(req, %{video: video, video_mime: video_mime}) do
       %{status: 200, body: video_binary, headers: video_headers} =
-        Req.get!(req, url: video, redirect: false, auth: "", into: :self)
+        Req.get!(req, url: video, redirect: false, auth: "")
 
-      content_type = video_mime || firstOrNil(video_headers, "video/mp4")
+      content_type = video_mime || first_or_nil(video_headers, "video/mp4")
       file = {video_binary, content_type: content_type, filename: video}
 
       %{"id" => id} = Mastodon.upload_media!(req, file: file)
@@ -275,27 +274,12 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp getContentType(headers, default) do
-    case headers["content-type"] do
-      [ct | _] -> ct
-      _ -> default
-    end
-  end
+  @spec first_or_nil(%{String.t() => [String.t()]}, String.t()) :: String.t() | nil
+  defp first_or_nil(headers_map, name)
 
-  defp infer_content_length(headers) do
-    case firstOrNil(headers, "content-length") do
-      nil ->
-        []
+  defp first_or_nil(nil, _name), do: nil
 
-      size_str ->
-        {size, ""} = size_str |> Integer.parse()
-        [content_length: size]
-    end
-  end
-
-  defp firstOrNil(nil, _name), do: nil
-
-  defp firstOrNil(headers_map, name) do
+  defp first_or_nil(headers_map, name) do
     val = get_in(headers_map, [name])
 
     if val == nil do
