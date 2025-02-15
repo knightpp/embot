@@ -6,7 +6,7 @@ defmodule Embot.NotificationHandler do
   @status_char_limit Application.compile_env!(:embot, :status_char_limit)
 
   @spec process_mention(map(), Embot.Mastodon.t()) :: :ok | {:error, term()}
-  def process_mention(event, mastodon) do
+  def process_mention(event, %Embot.Mastodon{} = mastodon) do
     Logger.info("received event", id: event["id"], ts: event["created_at"])
 
     case parse_links_and_send_reply!(mastodon, event) do

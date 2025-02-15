@@ -9,6 +9,7 @@ defmodule Embot.Fxtwi do
 
   @user_agent "embot/fxtwi"
 
+  @spec patch_url!(String.t()) :: String.t()
   def patch_url!(link) do
     case patch_url(link) do
       {:ok, patched} -> patched
@@ -16,6 +17,7 @@ defmodule Embot.Fxtwi do
     end
   end
 
+  @spec patch_url(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def patch_url(link) do
     uri = URI.parse(link)
 
@@ -34,6 +36,7 @@ defmodule Embot.Fxtwi do
     end
   end
 
+  @spec do_get(Req.Request.t(), String.t()) :: {:ok, map()} | {:error, {number(), String.t()}}
   defp do_get(req, url) do
     %{
       status: status,
@@ -93,17 +96,17 @@ defmodule Embot.Fxtwi do
     }
   end
 
-  # @spec strip_redirect!(String.t()) :: String.t()
-  # def strip_redirect!(url) when is_binary(url) do
-  #   uri = URI.new!(url)
+  @spec strip_redirect!(String.t()) :: String.t()
+  def strip_redirect!(url) when is_binary(url) do
+    uri = URI.new!(url)
 
-  #   if uri.query == nil do
-  #     url
-  #   else
-  #     case URI.decode_query(uri.query) do
-  #       %{"url" => redirect} -> redirect
-  #       _ -> url
-  #     end
-  #   end
-  # end
+    if uri.query == nil do
+      url
+    else
+      case URI.decode_query(uri.query) do
+        %{"url" => redirect} -> redirect
+        _ -> url
+      end
+    end
+  end
 end

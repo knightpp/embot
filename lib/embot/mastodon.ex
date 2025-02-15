@@ -6,8 +6,8 @@ defmodule Embot.Mastodon do
   @type t() :: %Mastodon{}
 
   @spec new(String.t(), String.t()) :: Mastodon.t()
-  def new(url, access_token) do
-    req = Req.new() |> Req.Request.put_header("user-agent", "Embot")
+  def new(url, access_token, base \\ Req.new()) do
+    req = base |> Req.Request.put_header("user-agent", "Embot")
 
     %Embot.Mastodon{
       http: req,
@@ -17,12 +17,12 @@ defmodule Embot.Mastodon do
     }
   end
 
-  def verify_credentials!(req) do
+  def verify_credentials!(%Req.Request{} = req) do
     %{status: 200, body: body} = Req.get!(req, url: "api/v1/apps/verify_credentials")
     body
   end
 
-  def upload_media(req, data) do
+  def upload_media(%Req.Request{} = req, data) do
     with {:ok, %{status: status, body: body, headers: headers}} =
            Req.post(req, url: "/api/v2/media", form_multipart: data, retry: :transient) do
       case status do
@@ -50,14 +50,14 @@ defmodule Embot.Mastodon do
     end
   end
 
-  def upload_media!(req, data) do
+  def upload_media!(%Req.Request{} = req, data) do
     case Req.post!(req, url: "/api/v2/media", form_multipart: data) do
       %{status: 200, body: body} -> body
       %{status: 202, body: body} -> body
     end
   end
 
-  def stream_notifications!(req, into, opts \\ []) do
+  def stream_notifications!(%Req.Request{} = req, into, opts \\ []) do
     req
     |> Req.Request.put_headers([
       {"content-type", "text/event-stream; charset=utf-8"},
@@ -76,7 +76,7 @@ defmodule Embot.Mastodon do
     )
   end
 
-  def notification_dismiss(req, notification_id) do
+  def notification_dismiss(%Req.Request{} = req, notification_id) do
     Req.post(req,
       url: "/api/v1/notifications/:id/dismiss",
       path_params: [id: notification_id],
@@ -84,7 +84,7 @@ defmodule Embot.Mastodon do
     )
   end
 
-  def post_status!(req, form_data) do
+  def post_status!(%Req.Request{} = req, form_data) do
     # req = Req.Request.put_new_header(req, "idempotency-key", to_string(:erlang.phash2(form_data)))
 
     %{status: 200, body: body} =
@@ -96,7 +96,7 @@ defmodule Embot.Mastodon do
     body
   end
 
-  def get_media!(req, id) do
+  def get_media!(%Req.Request{} = req, id) do
     %{status: status, body: body} =
       Req.get!(req,
         url: "/api/v1/media/:id",
@@ -112,7 +112,7 @@ defmodule Embot.Mastodon do
     end
   end
 
-  def oauth_token!(req, client_id, client_secret) do
+  def oauth_token!(%Req.Request{} = req, client_id, client_secret) do
     %{status: 200, body: body} =
       Req.post!(req,
         url: "/oauth/token",
@@ -132,7 +132,7 @@ defmodule Embot.Mastodon do
     }
   end
 
-  def notifications!(req, query_params \\ []) do
+  def notifications!(%Req.Request{} = req, query_params \\ []) do
     %{status: 200, body: body} = Req.get!(req, url: "/api/v1/notifications", params: query_params)
     body
   end

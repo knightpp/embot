@@ -10,22 +10,25 @@ defmodule Embot.BacklogTest do
   test "empty mentions" do
     Req.Test.expect(Backlog, &Req.Test.json(&1, []))
     req = Req.new(plug: {Req.Test, Backlog})
+    mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
-    Backlog.run(req, nil)
+    Backlog.run(mastodon, nil)
   end
 
   test "one mention" do
     Req.Test.expect(Backlog, &Req.Test.json(&1, [""]))
     req = Req.new(plug: {Req.Test, Backlog})
+    mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
-    Backlog.run(req, fn {:mention, ""} -> :ok end)
+    Backlog.run(mastodon, fn {:mention, ""} -> :ok end)
   end
 
   test "multiple mentions" do
     Req.Test.expect(Backlog, &Req.Test.json(&1, ["1", "2", "3"]))
     req = Req.new(plug: {Req.Test, Backlog})
+    mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
-    Backlog.run(req, fn {:mention, data} ->
+    Backlog.run(mastodon, fn {:mention, data} ->
       case data do
         "1" -> :ok
         "2" -> :ok

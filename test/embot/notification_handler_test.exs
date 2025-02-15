@@ -3,7 +3,7 @@ defmodule Embot.NotificationHandlerTest do
   import ExUnit.CaptureLog
   alias Embot.NotificationHandler
 
-  @html File.read!("test/data/gif.html")
+  @gif_response File.read!("test/data/gif.json")
 
   setup do
     Req.Test.verify_on_exit!()
@@ -22,11 +22,12 @@ defmodule Embot.NotificationHandlerTest do
 
     test "when unknown notification type" do
       req = Req.new(plug: {Req.Test, NotifHandler})
+      mastodon = Embot.Mastodon.new("http://localhost", "token", req)
       map = %{"id" => 42, "type" => :test}
 
       log_lines =
         capture_log(fn ->
-          NotificationHandler.process_mention(map, req)
+          NotificationHandler.process_mention(map, mastodon)
         end)
 
       assert log_lines =~ "unknown notification"
@@ -36,11 +37,12 @@ defmodule Embot.NotificationHandlerTest do
 
     test "when notification from bot" do
       req = Req.new(plug: {Req.Test, NotifHandler})
+      mastodon = Embot.Mastodon.new("http://localhost", "token", req)
       map = %{"id" => 42, "account" => %{"bot" => true, "acct" => "test"}}
 
       log_lines =
         capture_log(fn ->
-          NotificationHandler.process_mention(map, req)
+          NotificationHandler.process_mention(map, mastodon)
         end)
 
       assert log_lines =~ "dismissing notification"
@@ -49,6 +51,7 @@ defmodule Embot.NotificationHandlerTest do
 
     test "when no links" do
       req = Req.new(plug: {Req.Test, NotifHandler})
+      mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
       map = %{
         "id" => 42,
@@ -68,7 +71,7 @@ defmodule Embot.NotificationHandlerTest do
 
       log_lines =
         capture_log(fn ->
-          NotificationHandler.process_mention(map, req)
+          NotificationHandler.process_mention(map, mastodon)
         end)
 
       assert log_lines =~ "dismissing notification"
@@ -77,6 +80,7 @@ defmodule Embot.NotificationHandlerTest do
 
     test "when no edited message" do
       req = Req.new(plug: {Req.Test, NotifHandler})
+      mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
       map = %{
         "id" => 42,
@@ -88,7 +92,7 @@ defmodule Embot.NotificationHandlerTest do
 
       log_lines =
         capture_log(fn ->
-          NotificationHandler.process_mention(map, req)
+          NotificationHandler.process_mention(map, mastodon)
         end)
 
       assert log_lines =~ "dismissing notification"
@@ -107,6 +111,7 @@ defmodule Embot.NotificationHandlerTest do
 
     Req.Test.expect(NotifHandler, &Req.Test.html(&1, ""))
     req = Req.new(plug: {Req.Test, NotifHandler})
+    mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
     map = %{
       "id" => 42,
@@ -122,7 +127,7 @@ defmodule Embot.NotificationHandlerTest do
       }
     }
 
-    assert {:error, errors} = NotificationHandler.process_mention(map, req)
+    assert {:error, errors} = NotificationHandler.process_mention(map, mastodon)
 
     for {:exit, [error]} <- errors do
       assert {:exit,
@@ -134,21 +139,23 @@ defmodule Embot.NotificationHandlerTest do
 
   @tag capture_log: true
   test "it works" do
+    response = Jason.decode!(@gif_response)
+
     Req.Test.expect(NotifHandler, 11, fn conn ->
       case Plug.Conn.request_url(conn) do
-        "https://fxtwitter.com/b" -> Req.Test.html(conn, @html)
-        "https://fixupx.com/a" -> Req.Test.html(conn, @html)
-        "http://www.example.com/api/v2/media" -> Req.Test.json(conn, %{"id" => 1})
-        "http://www.example.com/api/v1/media/1" -> Req.Test.json(conn, %{})
-        "http://www.example.com/api/v1/statuses" -> Req.Test.json(conn, %{})
-        "http://www.example.com/api/v1/notifications/42/dismiss" -> Req.Test.json(conn, %{})
-        "https://127.0.0.1/video.mp4" -> Req.Test.text(conn, "1")
-        "https://127.0.0.1/image.png" -> Req.Test.text(conn, "2")
+        "https://api.fxtwitter.com/b" -> Req.Test.json(conn, response)
+        "https://api.fxtwitter.com/a" -> Req.Test.json(conn, response)
+        "http://localhost/api/v1/statuses" -> Req.Test.json(conn, %{})
+        "http://localhost/api/v1/notifications/42/dismiss" -> Req.Test.json(conn, %{})
+        "https://video.twimg.com/tweet_video/Gjv05uxacAAbtze.mp4" -> Req.Test.text(conn, "1")
+        "http://localhost/api/v2/media" -> Req.Test.json(conn, %{"id" => "upload_id"})
+        "http://localhost/api/v1/media/upload_id" -> Req.Test.json(conn, %{})
         url -> flunk("Unexpected url #{url}")
       end
     end)
 
     req = Req.new(plug: {Req.Test, NotifHandler})
+    mastodon = Embot.Mastodon.new("http://localhost", "token", req)
 
     map = %{
       "id" => 42,
@@ -164,6 +171,6 @@ defmodule Embot.NotificationHandlerTest do
       }
     }
 
-    assert :ok = NotificationHandler.process_mention(map, req)
+    assert :ok = NotificationHandler.process_mention(map, mastodon)
   end
 end
