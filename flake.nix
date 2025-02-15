@@ -21,13 +21,39 @@
           pkgs = import nixpkgs {inherit system;};
         });
   in {
-    packages = forAllSystems ({pkgs}: rec {
-      default = embot;
-      embot = pkgs.callPackage ./embot.nix {};
+    packages = forAllSystems ({pkgs}: let
+      mkImage = {
+        package,
+        name,
+        tag,
+      }:
+        pkgs.dockerTools.buildImage {
+          inherit name;
+          inherit tag;
 
-      deps = pkgs.writeShellScriptBin "generate-deps-nix" ''
-        ${pkgs.mix2nix}/bin/mix2nix > deps.nix
-      '';
+          compressor = "zstd";
+          copyToRoot = [package];
+
+          config = {
+            Cmd = ["${package}/bin/embot" "start"];
+          };
+        };
+      embot = pkgs.callPackage ./package.nix {};
+    in {
+      default = embot;
+      inherit embot;
+
+      image = mkImage {
+        package = embot;
+        name = "embot";
+        tag = "dev";
+      };
+
+      release-image = mkImage {
+        package = embot;
+        name = "registry.fly.io/app-spring-dawn-4138";
+        tag = "latest";
+      };
     });
 
     devShells = forAllSystems ({pkgs}: {
