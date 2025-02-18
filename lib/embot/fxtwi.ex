@@ -60,16 +60,16 @@ defmodule Embot.Fxtwi do
         "text" => text,
         "media" => media
       }) do
-    image =
-      case media["mosaic"] do
-        [mosaic | _] ->
-          mosaic["formats"]["jpeg"]
+    mosaic = get_in(media, ["mosaic", "formats", "jpeg"])
 
-        _ ->
-          case media["photos"] do
-            [photo | _] -> photo["url"]
-            _ -> nil
-          end
+    image =
+      if mosaic do
+        mosaic
+      else
+        case media["photos"] do
+          [photo | _] -> photo["url"]
+          _ -> nil
+        end
       end
 
     {video, video_mime} =
