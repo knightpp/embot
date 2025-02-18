@@ -136,6 +136,14 @@ defmodule Embot.Mastodon do
     %{status: 200, body: body} = Req.get!(req, url: "/api/v1/notifications", params: query_params)
     body
   end
+
+  def get_status(%Req.Request{} = req, id) do
+    Req.get!(req, url: "/api/v1/statuses/:id", path_params: [id: id])
+    |> get_status_parse()
+  end
+
+  defp get_status_parse(%{status: 200, body: status}), do: {:ok, status}
+  defp get_status_parse(%{body: err}), do: {:error, inspect(err)}
 end
 
 defmodule Embot.Mastodon.Error do
