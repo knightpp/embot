@@ -185,15 +185,13 @@ defmodule Embot.NotificationHandler do
 
       Mastodon.post_status!(
         mastodon.auth,
-        Keyword.merge(
-          [
-            status: status,
-            in_reply_to_id: context.status_id,
-            visibility: visibility,
-            "media_ids[]": media_id
-          ],
-          args_to_request(context.args)
-        )
+        %{
+          status: status,
+          in_reply_to_id: context.status_id,
+          visibility: visibility,
+          media_ids: [media_id]
+        }
+        |> args_to_request(context.args)
       )
 
       :ok
@@ -227,9 +225,13 @@ defmodule Embot.NotificationHandler do
 
   defp guess_nitter(link), do: {:error, {:unexpected_scheme, link}}
 
-  defp wait_media_processing!(_req, nil), do: :no_media
+  defp wait_media_processing!(req, media_id, tries \\ 0)
+  defp wait_media_processing!(_req, nil, _tries), do: :no_media
 
-  defp wait_media_processing!(req, media_id) do
+  defp wait_media_processing!(_req, _media_id, tries) when tries > 5,
+    do: raise("max retries reached")
+
+  defp wait_media_processing!(req, media_id, _) do
     case Mastodon.get_media!(req, media_id) do
       {:processing, _} ->
         :timer.sleep(:timer.seconds(1))
@@ -306,15 +308,15 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp args_to_request(args) do
-    Enum.reduce(args, [], fn
+  defp args_to_request(%{} = data, args) do
+    Enum.reduce(args, data, fn
       {:cw, nil}, acc ->
-        Keyword.put(acc, :sensitive, "true")
+        Map.put(acc, :sensitive, true)
 
       {:cw, spoiler_text}, acc ->
         acc
-        |> Keyword.put(:sensitive, "true")
-        |> Keyword.put(:spoiler_text, spoiler_text)
+        |> Map.put(:sensitive, true)
+        |> Map.put(:spoiler_text, spoiler_text)
     end)
   end
 end

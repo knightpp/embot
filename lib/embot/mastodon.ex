@@ -84,13 +84,13 @@ defmodule Embot.Mastodon do
     )
   end
 
-  def post_status!(%Req.Request{} = req, form_data) do
+  def post_status!(%Req.Request{} = req, %{} = data) do
     # req = Req.Request.put_new_header(req, "idempotency-key", to_string(:erlang.phash2(form_data)))
 
     %{status: 200, body: body} =
       Req.post!(req,
         url: "/api/v1/statuses",
-        form: form_data
+        json: data
       )
 
     body
