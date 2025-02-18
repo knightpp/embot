@@ -7,7 +7,11 @@ defmodule Embot.NotificationHandler do
 
   @spec process_mention(map(), Embot.Mastodon.t()) :: :ok | {:error, term()}
   def process_mention(event, %Embot.Mastodon{} = mastodon) do
-    Logger.info("received event", id: event["id"], ts: event["created_at"])
+    Logger.info("received event",
+      id: event["id"],
+      ts: event["created_at"],
+      url: get_in(event, ["status", "url"])
+    )
 
     case parse_links_and_send_reply!(mastodon, event) do
       :ok ->
@@ -31,7 +35,12 @@ defmodule Embot.NotificationHandler do
           :ok | {:error, term()}
   defp dismiss_notification(event, mastodon, reason) do
     notification_id = Map.fetch!(event, "id")
-    Logger.notice("dismissing notification", id: notification_id, reason: reason)
+
+    Logger.notice("dismissing notification",
+      id: notification_id,
+      reason: reason,
+      url: get_in(event, ["status", "url"])
+    )
 
     with {:ok, %{status: status}} <- Mastodon.notification_dismiss(mastodon.auth, notification_id) do
       case status do

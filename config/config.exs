@@ -10,7 +10,7 @@ log_level =
 config :logger, level: log_level
 
 config :logger, :default_formatter,
-  format: "ts=$time lvl=$level msg=\"$message\" $metadata\n",
+  format: "lvl=$level msg=\"$message\" $metadata\n",
   metadata: :all
 
 config :embot,
