@@ -13,14 +13,15 @@ defmodule Embot.Streamer.Consumer do
 
   @impl GenStage
   def handle_events(events, _from, mastodon) do
-    Enum.each(events, fn event ->
-      case event do
-        {:mention, mention} ->
-          Embot.NotificationHandler.process_mention(mention, mastodon) |> maybe_log_error()
-      end
+    Enum.each(events, fn
+      {:mention, mention} -> process_mention(mention, mastodon)
     end)
 
     {:noreply, [], mastodon}
+  end
+
+  defp process_mention(mention, mastodon) do
+    Embot.NotificationHandler.process_mention(mention, mastodon) |> maybe_log_error()
   end
 
   defp maybe_log_error(result) do
