@@ -7,7 +7,8 @@ defmodule Embot.FxtwiTest do
   test "parse gif" do
     want = %{
       text: "Secret Attic  #pixelart",
-      image: nil,
+      images: [],
+      mosaic: nil,
       url: "https://twitter.com/d4frdm/status/1890373755089662451",
       video: "https://video.twimg.com/tweet_video/Gjv05uxacAAbtze.mp4",
       video_mime: "video/mp4"

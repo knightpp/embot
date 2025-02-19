@@ -3,7 +3,8 @@ defmodule Embot.Fxtwi do
           text: String.t(),
           url: String.t(),
           video: nil | String.t(),
-          image: nil | String.t(),
+          images: [String.t()],
+          mosaic: nil | String.t(),
           video_mime: nil | String.t()
         }
 
@@ -28,7 +29,7 @@ defmodule Embot.Fxtwi do
     end
   end
 
-  @spec get(Req.Request.t(), String.t()) :: {:ok, Embot.Fxtwi.t()} | {:error, term()}
+  @spec get(Req.Request.t(), String.t()) :: {:ok, t()} | {:error, term()}
   def get(req, url) do
     with {:ok, url} <- patch_url(url),
          {:ok, tweet} <- do_get(req, url) do
@@ -36,7 +37,7 @@ defmodule Embot.Fxtwi do
     end
   end
 
-  @spec do_get(Req.Request.t(), String.t()) :: {:ok, map()} | {:error, {number(), String.t()}}
+  @spec do_get(Req.Request.t(), String.t()) :: {:ok, t()} | {:error, {number(), String.t()}}
   defp do_get(req, url) do
     %{
       status: status,
@@ -54,24 +55,12 @@ defmodule Embot.Fxtwi do
     end
   end
 
-  @spec parse(map()) :: Embot.Fxtwi.t()
+  @spec parse(map()) :: t()
   def parse(%{
         "url" => url,
         "text" => text,
         "media" => media
       }) do
-    mosaic = get_in(media, ["mosaic", "formats", "jpeg"])
-
-    image =
-      if mosaic do
-        mosaic
-      else
-        case media["photos"] do
-          [photo | _] -> photo["url"]
-          _ -> nil
-        end
-      end
-
     {video, video_mime} =
       case media["videos"] do
         [
@@ -91,7 +80,8 @@ defmodule Embot.Fxtwi do
       video: video,
       text: text,
       url: url,
-      image: image,
+      mosaic: get_in(media, ["mosaic", "formats", "jpeg"]),
+      images: media |> Map.get("photos", []) |> Enum.map(fn photo -> photo["url"] end),
       video_mime: video_mime
     }
   end

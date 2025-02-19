@@ -16,4 +16,5 @@ config :logger, :default_formatter,
 config :embot,
   env: config_env(),
   fs_video: System.get_env("ENABLE_FS_VIDEO", "0") != "0",
-  status_char_limit: 500
+  status_char_limit: 500,
+  media_attachment_limit: 4

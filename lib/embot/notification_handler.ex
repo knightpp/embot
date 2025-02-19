@@ -4,6 +4,7 @@ defmodule Embot.NotificationHandler do
   alias Embot.NotificationHandler.LinkContext
 
   @status_char_limit Application.compile_env!(:embot, :status_char_limit)
+  @attachments_limit Application.compile_env!(:embot, :media_attachment_limit)
 
   @spec process_mention(map(), Embot.Mastodon.t()) :: :ok | {:error, term()}
   def process_mention(event, %Embot.Mastodon{} = mastodon) do
@@ -171,8 +172,8 @@ defmodule Embot.NotificationHandler do
           _ -> "unlisted"
         end
 
-      media_id = upload_media!(mastodon.auth, twi)
-      wait_media_processing!(mastodon.auth, media_id)
+      media_ids = upload_media!(mastodon.auth, twi)
+      Enum.each(media_ids, fn id -> wait_media_processing!(mastodon.auth, id) end)
 
       status =
         """
@@ -189,7 +190,7 @@ defmodule Embot.NotificationHandler do
           status: status,
           in_reply_to_id: context.status_id,
           visibility: visibility,
-          media_ids: [media_id]
+          media_ids: media_ids
         }
         |> args_to_request(context.args)
       )
@@ -242,15 +243,26 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  defp upload_media!(_req, %{video: nil, image: nil}), do: nil
+  @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: [String.t()]
+  defp upload_media!(_req, %{video: nil, images: [], mosaic: nil}), do: []
 
-  defp upload_media!(req, %{video: nil, image: url}) do
-    %{status: 200, body: image, headers: %{"content-type" => [mime]}} =
-      Req.get!(url: url, redirect: false)
+  defp upload_media!(req, %{video: nil, images: images, mosaic: mosaic}) do
+    to_upload =
+      if Enum.count(images) > @attachments_limit do
+        [mosaic]
+      else
+        images
+      end
 
-    %{"id" => id} = Mastodon.upload_media!(req, file: {image, content_type: mime, filename: url})
+    Enum.map(to_upload, fn url ->
+      %{status: 200, body: image, headers: %{"content-type" => [mime]}} =
+        Req.get!(url: url, redirect: false)
 
-    id
+      %{"id" => id} =
+        Mastodon.upload_media!(req, file: {image, content_type: mime, filename: url})
+
+      id
+    end)
   end
 
   # there's https://github.com/wojtekmach/req/issues/268 but I need multipart send :(
@@ -269,7 +281,7 @@ defmodule Embot.NotificationHandler do
 
       File.rm!(tmp_file_path)
 
-      id
+      [id]
     end
   else
     defp upload_media!(req, %{video: video, video_mime: video_mime}) do
@@ -281,7 +293,7 @@ defmodule Embot.NotificationHandler do
 
       %{"id" => id} = Mastodon.upload_media!(req, file: file)
 
-      id
+      [id]
     end
   end
 
