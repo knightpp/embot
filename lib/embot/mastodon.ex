@@ -22,39 +22,41 @@ defmodule Embot.Mastodon do
     body
   end
 
+  @spec upload_media!(Req.Request.t(), Keyword.t()) :: map()
+  def upload_media!(%Req.Request{} = req, data) do
+    {:ok, body} = upload_media(req, data)
+    body
+  end
+
+  @spec upload_media(Req.Request.t(), Keyword.t()) :: {:ok, map()} | {:error, term()}
   def upload_media(%Req.Request{} = req, data) do
-    with {:ok, %{status: status, body: body, headers: headers}} =
-           Req.post(req, url: "/api/v2/media", form_multipart: data, retry: :transient) do
-      case status do
-        200 ->
-          {:ok, body}
+    retry_fn = fn
+      _, %Req.Response{status: status} -> status in [408, 429, 500, 502, 503, 504, 520]
+      _, _ -> false
+    end
 
-        202 ->
-          {:ok, body}
-
-        429 ->
-          {:error, {"rate limited", headers}}
-
-        status ->
-          {
-            :error,
-            # TODO: didn't work
-            # %Embot.Mastodon.Error{
-            %{
-              message: "unexpected status code",
-              body: body,
-              status: status
-            }
-          }
-      end
+    with {:ok, resp} =
+           Req.post(req, url: "/api/v2/media", form_multipart: data, retry: retry_fn) do
+      upload_media_handle_response(resp)
     end
   end
 
-  def upload_media!(%Req.Request{} = req, data) do
-    case Req.post!(req, url: "/api/v2/media", form_multipart: data) do
-      %{status: 200, body: body} -> body
-      %{status: 202, body: body} -> body
-    end
+  defp upload_media_handle_response(%{status: 200, body: body}), do: {:ok, body}
+  defp upload_media_handle_response(%{status: 202, body: body}), do: {:ok, body}
+
+  defp upload_media_handle_response(%{status: 429, headers: headers}),
+    do: {:error, {"rate limited", headers}}
+
+  defp upload_media_handle_response(%{status: status, body: body, headers: headers}) do
+    {
+      :error,
+      %{
+        message: "unexpected status code",
+        body: body,
+        status: status,
+        headers: headers
+      }
+    }
   end
 
   def stream_notifications!(%Req.Request{} = req, into, opts \\ []) do

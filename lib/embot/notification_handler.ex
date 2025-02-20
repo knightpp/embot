@@ -166,14 +166,19 @@ defmodule Embot.NotificationHandler do
     Logger.info("processing...", link: context.link)
 
     with {:ok, twi} <- Embot.Fxtwi.get(mastodon.http, context.link) do
+      Logger.debug("got fxtwi response", twi: twi)
+
       visibility =
         case context.visibility do
           "direct" -> "direct"
           _ -> "unlisted"
         end
 
+      Logger.debug("uploading media...")
       media_ids = upload_media!(mastodon.auth, twi)
+      Logger.debug("waiting media processing...")
       Enum.each(media_ids, fn id -> wait_media_processing!(mastodon.auth, id) end)
+      Logger.debug("media ready")
 
       status =
         """
@@ -244,9 +249,9 @@ defmodule Embot.NotificationHandler do
   end
 
   @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: [String.t()]
-  defp upload_media!(_req, %{video: nil, images: [], mosaic: nil}), do: []
+  defp upload_media!(%Req.Request{} = _req, %{video: nil, images: [], mosaic: nil}), do: []
 
-  defp upload_media!(req, %{video: nil, images: images, mosaic: mosaic}) do
+  defp upload_media!(%Req.Request{} = req, %{video: nil, images: images, mosaic: mosaic}) do
     to_upload =
       if Enum.count(images) > @attachments_limit do
         [mosaic]
@@ -267,7 +272,7 @@ defmodule Embot.NotificationHandler do
 
   # there's https://github.com/wojtekmach/req/issues/268 but I need multipart send :(
   if Application.compile_env!(:embot, :fs_video) do
-    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
+    defp upload_media!(%Req.Request{} = req, %{video: video, video_mime: video_mime}) do
       tmp_file_path = "/tmp/video/#{:rand.uniform()}"
       file = File.stream!(tmp_file_path, 1024)
 
@@ -284,12 +289,20 @@ defmodule Embot.NotificationHandler do
       [id]
     end
   else
-    defp upload_media!(req, %{video: video, video_mime: video_mime}) do
+    defp upload_media!(%Req.Request{} = req, %{video: video, video_mime: video_mime}) do
+      Logger.debug("downloading video...", url: video, mime: video_mime)
+
       %{status: 200, body: video_binary, headers: video_headers} =
         Req.get!(req, url: video, redirect: false, auth: "")
 
       content_type = video_mime || first_or_nil(video_headers, "video/mp4")
       file = {video_binary, content_type: content_type, filename: video}
+
+      Logger.debug("uploading video...",
+        url: video,
+        mime: video_mime,
+        size: byte_size(video_binary)
+      )
 
       %{"id" => id} = Mastodon.upload_media!(req, file: file)
 
