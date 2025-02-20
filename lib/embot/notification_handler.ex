@@ -174,7 +174,6 @@ defmodule Embot.NotificationHandler do
           _ -> "unlisted"
         end
 
-      Logger.debug("uploading media...")
       media_ids = upload_media!(mastodon.auth, twi)
       Logger.debug("waiting media processing...")
       Enum.each(media_ids, fn id -> wait_media_processing!(mastodon.auth, id) end)
@@ -248,66 +247,78 @@ defmodule Embot.NotificationHandler do
     end
   end
 
-  @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: [String.t()]
-  defp upload_media!(%Req.Request{} = _req, %{video: nil, images: [], mosaic: nil}), do: []
-
-  defp upload_media!(%Req.Request{} = req, %{video: nil, images: images, mosaic: mosaic}) do
-    to_upload =
-      if Enum.count(images) > @attachments_limit do
-        [mosaic]
-      else
-        images
-      end
-
-    Enum.map(to_upload, fn url ->
-      %{status: 200, body: image, headers: %{"content-type" => [mime]}} =
-        Req.get!(url: url, redirect: false)
-
-      %{"id" => id} =
-        Mastodon.upload_media!(req, file: {image, content_type: mime, filename: url})
-
-      id
-    end)
-  end
-
-  # there's https://github.com/wojtekmach/req/issues/268 but I need multipart send :(
   if Application.compile_env!(:embot, :fs_video) do
-    defp upload_media!(%Req.Request{} = req, %{video: video, video_mime: video_mime}) do
+    defp upload_video!(req, {url, mime}) do
+      Logger.debug("downloading video...", url: url, mime: mime)
+
       tmp_file_path = "/tmp/video/#{:rand.uniform()}"
-      file = File.stream!(tmp_file_path, 1024)
+      file = File.stream!(tmp_file_path, 4096)
 
       %{status: 200, headers: video_headers} =
-        Req.get!(req, url: video, redirect: false, auth: "", into: file)
+        Req.get!(req, url: url, redirect: false, auth: "", into: file)
 
-      content_type = video_mime || first_or_nil(video_headers, "video/mp4")
-      multipart = {file, content_type: content_type, filename: video}
+      content_type = mime || first_or_nil(video_headers, "video/mp4")
+      multipart = {file, content_type: content_type, filename: url}
+
+      Logger.debug("uploading video...",
+        url: url,
+        mime: mime,
+        size: File.stat!(tmp_file_path).size
+      )
 
       %{"id" => id} = Mastodon.upload_media!(req, file: multipart)
 
       File.rm!(tmp_file_path)
 
-      [id]
+      id
     end
   else
-    defp upload_media!(%Req.Request{} = req, %{video: video, video_mime: video_mime}) do
-      Logger.debug("downloading video...", url: video, mime: video_mime)
+    defp upload_video!(req, {url, mime}) do
+      Logger.debug("downloading video...", url: url, mime: mime)
 
       %{status: 200, body: video_binary, headers: video_headers} =
-        Req.get!(req, url: video, redirect: false, auth: "")
+        Req.get!(req, url: url, redirect: false, auth: "")
 
-      content_type = video_mime || first_or_nil(video_headers, "video/mp4")
-      file = {video_binary, content_type: content_type, filename: video}
+      content_type = mime || first_or_nil(video_headers, "video/mp4")
+      file = {video_binary, content_type: content_type, filename: url}
 
       Logger.debug("uploading video...",
-        url: video,
-        mime: video_mime,
+        url: url,
+        mime: mime,
         size: byte_size(video_binary)
       )
 
       %{"id" => id} = Mastodon.upload_media!(req, file: file)
 
-      [id]
+      id
     end
+  end
+
+  defp upload_image!(req, url) do
+    %{status: 200, body: image, headers: %{"content-type" => [mime]}} =
+      Req.get!(url: url, redirect: false, auth: "")
+
+    %{"id" => id} =
+      Mastodon.upload_media!(req, file: {image, content_type: mime, filename: url})
+
+    id
+  end
+
+  @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: [String.t()]
+  defp upload_media!(%Req.Request{} = req, %{videos: videos, images: images, mosaics: mosaics}) do
+    images_to_upload =
+      if Enum.count(images) > @attachments_limit do
+        mosaics
+      else
+        images
+      end
+
+    Logger.debug("uploading media", images: inspect(images_to_upload), videos: inspect(videos))
+
+    images_to_upload
+    |> Stream.map(&upload_image!(req, &1))
+    |> Stream.concat(Stream.map(videos, &upload_video!(req, &1)))
+    |> Enum.take(@attachments_limit)
   end
 
   @spec first_or_nil(%{String.t() => [String.t()]}, String.t()) :: String.t() | nil

@@ -5,17 +5,15 @@ defmodule Embot.FxtwiTest do
   @gif_json File.read!("./test/data/gif.json")
 
   test "parse gif" do
-    want = %{
-      text: "Secret Attic  #pixelart",
-      images: [],
-      mosaic: nil,
-      url: "https://twitter.com/d4frdm/status/1890373755089662451",
-      video: "https://video.twimg.com/tweet_video/Gjv05uxacAAbtze.mp4",
-      video_mime: "video/mp4"
-    }
-
     assert %{"tweet" => tweet} = Jason.decode!(@gif_json)
-    assert ^want = Fxtwi.parse(tweet)
+
+    assert %{
+             text: "Secret Attic  #pixelart",
+             images: [],
+             mosaics: [],
+             url: "https://twitter.com/d4frdm/status/1890373755089662451",
+             videos: [{"https://video.twimg.com/tweet_video/Gjv05uxacAAbtze.mp4", "video/mp4"}]
+           } = Fxtwi.parse(tweet)
   end
 
   describe "patch_url!" do
