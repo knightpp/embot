@@ -5,9 +5,10 @@ defmodule Embot.Fxtwi do
           url: String.t(),
           videos: [{String.t(), mime()}],
           images: [String.t()],
-          mosaics: [String.t()]
+          mosaics: [String.t()],
+          sensitive: boolean()
         }
-  defstruct text: nil, url: nil, videos: [], images: [], mosaics: []
+  defstruct text: nil, url: nil, videos: [], images: [], mosaics: [], sensitive: false
 
   @user_agent "embot/fxtwi"
 
@@ -85,7 +86,8 @@ defmodule Embot.Fxtwi do
     parse_media(
       %Embot.Fxtwi{
         text: text,
-        url: url
+        url: url,
+        sensitive: tweet["possibly_sensitive"] || quote["possibly_sensitive"] || false
       },
       tweet["media"]
     )
@@ -95,12 +97,14 @@ defmodule Embot.Fxtwi do
   def parse(%{
         "url" => url,
         "text" => text,
-        "media" => media
+        "media" => media,
+        "possibly_sensitive" => sensitive
       }) do
     parse_media(
       %Embot.Fxtwi{
         text: text,
-        url: url
+        url: url,
+        sensitive: sensitive || false
       },
       media
     )

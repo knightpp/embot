@@ -194,7 +194,8 @@ defmodule Embot.NotificationHandler do
           status: status,
           in_reply_to_id: context.status_id,
           visibility: visibility,
-          media_ids: media_ids
+          media_ids: media_ids,
+          sensitive: twi.sensitive
         }
         |> args_to_request(context.args)
       )
