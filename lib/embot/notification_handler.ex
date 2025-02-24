@@ -174,9 +174,13 @@ defmodule Embot.NotificationHandler do
           _ -> "unlisted"
         end
 
-      media_ids = upload_media!(mastodon.auth, twi)
+      {images, videos} = upload_media!(mastodon.auth, twi)
       Logger.debug("waiting media processing...")
-      Enum.each(media_ids, fn id -> wait_media_processing!(mastodon.auth, id) end)
+
+      Enum.each(Stream.concat(images, videos), fn id ->
+        wait_media_processing!(mastodon.auth, id)
+      end)
+
       Logger.debug("media ready")
 
       status =
@@ -188,17 +192,28 @@ defmodule Embot.NotificationHandler do
         """
         |> limit_string(@status_char_limit)
 
-      Mastodon.post_status!(
-        mastodon.auth,
-        %{
-          status: status,
-          in_reply_to_id: context.status_id,
-          visibility: visibility,
-          media_ids: media_ids,
-          sensitive: twi.sensitive
-        }
-        |> args_to_request(context.args)
-      )
+      chunks =
+        Stream.concat(
+          Stream.chunk_every(images, @attachments_limit),
+          Stream.chunk_every(videos, @attachments_limit)
+        )
+
+      Enum.reduce(chunks, context.status_id, fn chunk, status_id ->
+        %{"id" => id} =
+          Mastodon.post_status!(
+            mastodon.auth,
+            %{
+              status: status,
+              in_reply_to_id: status_id,
+              visibility: visibility,
+              media_ids: chunk,
+              sensitive: twi.sensitive
+            }
+            |> args_to_request(context.args)
+          )
+
+        id
+      end)
 
       :ok
     end
@@ -305,21 +320,15 @@ defmodule Embot.NotificationHandler do
     id
   end
 
-  @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: [String.t()]
-  defp upload_media!(%Req.Request{} = req, %{videos: videos, images: images, mosaics: mosaics}) do
-    images_to_upload =
-      if Enum.count(images) > @attachments_limit do
-        mosaics
-      else
-        images
-      end
+  # mastodon does not allow mixing video and images :(
+  @spec upload_media!(Req.Request.t(), Embot.Fxtwi.t()) :: {[String.t()], [String.t()]}
+  defp upload_media!(%Req.Request{} = req, %{videos: videos, images: images}) do
+    Logger.debug("uploading media", images: inspect(images), videos: inspect(videos))
 
-    Logger.debug("uploading media", images: inspect(images_to_upload), videos: inspect(videos))
-
-    images_to_upload
-    |> Stream.map(&upload_image!(req, &1))
-    |> Stream.concat(Stream.map(videos, &upload_video!(req, &1)))
-    |> Enum.take(@attachments_limit)
+    {
+      Enum.map(images, &upload_image!(req, &1)),
+      Enum.map(videos, &upload_video!(req, &1))
+    }
   end
 
   @spec first_or_nil(%{String.t() => [String.t()]}, String.t()) :: String.t() | nil
